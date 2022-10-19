@@ -353,39 +353,70 @@
         Answering these questions is optional, but will help us understand your answers.
       </p>
       <p>
-        Did you read the instructions and do you think you did the HIT correctly?
-      </p><label><input type="radio" name="assess" value="No">No</label> <label><input type="radio" name="assess"
-          value="Yes">Yes</label> <label><input type="radio" name="assess" value="Confused">I was confused</label>
+        Did you read the instructions and do you think you did the experiment correctly?
+      </p><label><input type="radio" name="assess" value="No">No</label> <label><input type="radio" name="assess" value="Yes">Yes</label> <label><input type="radio" name="assess" value="Confused">I was confused</label>
       <p>
-        Were there any problems or bugs in the experiment?
+        Gender: <select id="gender">
+          <option value="">
+          </option>
+          <option value="Male">
+            male
+          </option>
+          <option value="Female">
+            female
+          </option>
+          <option value="Other">
+            other
+          </option>
+        </select>
       </p>
-      <textarea id="problems" rows="2" cols="50"></textarea>
       <p>
-        What do you think is a fair price for the work you did?
-      </p><input type="text" id="fairprice">
+        Age: <input type="text" id="age">
+      </p>
       <p>
-        Native Language: <input type="text" id="language">
+        Level of education: <select id="education">
+          <option value="-1">
+          </option>
+          <option value="0">
+            Some high school
+          </option>
+          <option value="1">
+            Graduated high school
+          </option>
+          <option value="2">
+            Some college
+          </option>
+          <option value="3">
+            Graduated college
+          </option>
+          <option value="4">
+            Hold a higher degree
+          </option>
+        </select>
+      </p>
+      <p>
+        Native language: <input type="text" id="language">
       </p><label>(the language(s) spoken at home when you were a child)</label>
       <p>
         Other Languages: <input type="text" id="other-language">
       </p><label>(other languages that you learned at some point in your life)</label>
       <p>
-        Did you enjoy the hit?
+        Did you enjoy the experiment?
       </p><select id="enjoyment">
         <option value="-1">
         </option>
         <option value="0">
-          Worse than the Average HIT
+          Worse than the average experiment
         </option>
         <option value="1">
-          An Average HIT
+          An average experiment
         </option>
         <option value="2">
-          Better than average HIT
+          Better than average experiment
         </option>
       </select>
       <p>
-        We would be interested in any comments you have about this experiment. Please type them here:
+        We would be interested in any comments  you have about this experiment <br> (e.g., things that could be improved, what you think this experiment was about, ...).<br>Please type them here:
       </p>
       <textarea id="comments" rows="3" cols="50"></textarea><br>
       <button onclick="_s.submit()">Submit</button>
