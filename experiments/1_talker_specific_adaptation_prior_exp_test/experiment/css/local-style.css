@@ -31,3 +31,23 @@ p.train-instructions {
 .err {
 	color: red;
 }
+
+.long_form {
+  text-align: left;
+}
+
+#i0 p  {
+  text-align: left;
+}
+
+#pre_instructions p {
+  text-align: left;
+}
+
+#instructions p {
+  text-align: left;
+}
+
+#test_instructions p {
+  text-align: left;
+}

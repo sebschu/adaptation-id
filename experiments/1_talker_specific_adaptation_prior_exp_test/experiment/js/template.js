@@ -1,4 +1,4 @@
-var REPETITIONS = 2;
+var REPETITIONS = 1;
 
 var reverse_sent_order = _.sample([true, false]);
 
@@ -420,8 +420,11 @@ function make_slides(f) {
 				other_languages: $("#other-language").val(),
 				asses: $('input[name="assess"]:checked').val(),
 				comments: $("#comments").val(),
-				problems: $("#problems").val(),
-				fairprice: $("#fairprice").val()
+				gender: $("#gender").val(),
+				age: $("#age").val(),
+				notice: $("#notice").val(),
+				education: $("#education").val(),
+				enjoyment: $("#enjoyment").val()
 			};
 			exp.go(); //use exp.go() if and only if there is no "present" data.
 		}
@@ -440,7 +443,7 @@ function make_slides(f) {
 				"subject_information": exp.subj_data,
 				"time_in_minutes": (Date.now() - exp.startT) / 60000
 			};
-			setTimeout(function () { turk.submit(exp.data); }, 1000);
+			 proliferate.submit(exp.data);
 		}
 	});
 
@@ -520,12 +523,7 @@ function init() {
 
 	//make sure turkers have accepted HIT (or you're not in mturk)
 	$("#start_button").click(function () {
-		if (turk.previewMode) {
-			$("#mustaccept").show();
-		} else {
-			$("#start_button").click(function () { $("#mustaccept").show(); });
 			exp.go();
-		}
 	});
 
 
