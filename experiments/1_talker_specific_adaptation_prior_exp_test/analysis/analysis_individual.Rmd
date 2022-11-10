@@ -102,19 +102,22 @@ trials[, c("test_order", "first_speaker_type", "second_speaker_type", "confident
 
 get_correct_catch_trial_counts = function (data) {
   ret = data %>% 
-  filter(., catch_trial == 1) %>%
+  filter(catch_trial == 1) %>%
   group_by(workerid) %>%
-  summarise(catch_perf = sum(catch_trial_answer_correct))
+  summarise(catch_perf = sum(catch_trial_answer_correct), catch_prop = sum(catch_trial_answer_correct)/n())
   
   return(ret)
 }
 
-EXCLUDE_BELOW = 9
+
+EXCLUDE_BELOW = 0.75
 
 catch_trial_perf = get_correct_catch_trial_counts(exp_trials)
 
+
+
 exclude = catch_trial_perf %>%
-  filter(catch_perf < EXCLUDE_BELOW) %>%
+  filter(catch_prop < EXCLUDE_BELOW) %>%
   .$workerid
 
 
@@ -128,10 +131,10 @@ d = trials %>% filter(., !(workerid %in% exclude))
 
 ```{r perf_plot_1, fig.height=2,fig.width=10, echo=FALSE}
 
-cutoff <- data.frame(yintercept=EXCLUDE_BELOW-0.5, cutoff=factor(EXCLUDE_BELOW-0.5))
+cutoff <- data.frame(yintercept=EXCLUDE_BELOW-0.05, cutoff=factor(EXCLUDE_BELOW-0.05))
 
 
-ggplot(catch_trial_perf, aes(x=factor(workerid), y=catch_perf)) + geom_bar(stat = "identity") + ggtitle("Catch trial performace") + xlab ("participant") + ylab("correct responses") + geom_hline(aes(yintercept=yintercept, linetype=cutoff, color="red"), data=cutoff) + theme(legend.position="none")
+ggplot(catch_trial_perf, aes(x=factor(workerid), y=catch_prop)) + geom_bar(stat = "identity") + ggtitle("Catch trial performace") + xlab ("participant") + ylab("correct responses") + geom_hline(aes(yintercept=yintercept, linetype=cutoff, color="red"), data=cutoff) + theme(legend.position="none")
 
 ```
 
@@ -381,7 +384,7 @@ contrasts(auc_d$test_order) = contr.sum(2)
 contrasts(auc_d$first_speaker_type) = contr.sum(2)
 contrasts(auc_d$confident_speaker) = contr.sum(2)
 
-model = lmer(formula= auc_diff ~ cond + test_order + first_speaker_type + confident_speaker + first_speaker_type * cond + (1| workerid), data = auc_d)
+model = lmer(formula= auc_diff ~ cond + test_order + first_speaker_type + confident_speaker + first_speaker_type * cond + test_order * cond + (1| workerid), data = auc_d)
 
 print(summary(model))
 
@@ -549,6 +552,7 @@ model = glmer(formula = most_likely_model ~ condition +
                 test_order + 
                 first_speaker_type + 
                 first_speaker_type * condition + 
+                test_order * condition + 
                 (1| workerid), 
               data = d.post_test, family = "binomial")
 
@@ -560,6 +564,7 @@ model1 = lmer(formula=likelihood_ratio ~
                test_order + 
                first_speaker_type + 
                first_speaker_type * condition + 
+               test_order * condition + 
                (1| workerid), 
              data = d.post_test)
 
@@ -578,6 +583,7 @@ model2 = lmer(formula= likelihood_ratio ~ condition +
                first_speaker_type + 
                prior_likelihood_ratio + 
                first_speaker_type * condition + 
+               test_order * condition + 
                (1| workerid), 
              data = d.post_test)
 

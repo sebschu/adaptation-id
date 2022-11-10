@@ -1,0 +1,637 @@
+---
+title: "Prior-exposure-test Experiment"
+author: "Sebastian Schuster"
+date: "10/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+library(ramify)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(gridExtra)
+library(DescTools)
+library(splines)
+library(stringr)
+library(lme4)
+library(lmerTest)
+source("helpers.R")
+
+
+
+theme_set(theme_bw())
+
+colscale = scale_color_manual(values=c("#7CB637", "#666666", "#4381C1")) 
+colscale_fill = scale_fill_manual(values=c("#7CB637", "#666666", "#4381C1")) 
+
+remove_quotes = function(d) {
+  if (!is.null(d$modal)) {
+    d$modal = gsub('"', '', d$modal)
+  }
+  d$color = gsub('"', '', d$color)
+  d$speaker_type = gsub('"', '', d$speaker_type)
+
+  return(d)
+}
+
+format_data = function(d) {
+  
+    drops <- c("modal1","rating1")
+  d2 = d[ , !(names(d) %in% drops)]
+  setnames(d2, old=c("rating2","modal2"), new=c("rating", "modal"))
+
+  drops <- c("modal2","rating2")
+  d3 = d[ , !(names(d) %in% drops)]
+  setnames(d3, old=c("rating1","modal1"), new=c("rating", "modal"))
+
+  drops <- c("modal2", "rating2", "modal1", "rating1")
+  d4 = d[ , !(names(d) %in% drops)]
+  d4$rating = d4$rating_other
+  d4$modal = "other"
+
+  d = rbind(d2, d3, d4)
+
+  d$modal = gsub('"', '', d$modal)
+  d$modal = factor(d$modal, levels = c("might", "probably", "other"), ordered = T)
+  
+  d$percentage_blue_f = factor(d$percentage_blue)
+  d_blue = d %>% filter(., grepl("blue", sentence2))
+  d_orange = d %>% filter(., grepl("orange", sentence2))
+
+  d_orange_reverse = d_orange
+  d_orange_reverse$percentage_blue = 100-d_orange$percentage_blue
+
+  d_comparison = rbind(d_blue, d_orange_reverse)
+  d_comparison$blue= grepl("blue", d_comparison$sentence2)
+  d_comparison$percentage_blue_f = factor(d_comparison$percentage_blue)
+
+  return(d_comparison)
+  
+}
+
+
+```
+
+```{r data, echo=FALSE}
+# Load data
+
+trials = remove_quotes(format_data(read.csv("../data/1_talker_specific_adaptation_prior_exp_test-trials.csv")))
+exp_trials = remove_quotes(read.csv("../data/1_talker_specific_adaptation_prior_exp_test-exp_trials.csv"))
+
+conditions = read.csv("../data/1_talker_specific_adaptation_prior_exp_test-condition.csv")
+
+subj_info = read.csv("../data/1_talker_specific_adaptation_prior_exp_test-subject_information.csv") %>% select(workerid, noticed_manipulation)
+
+trials = merge(trials, conditions %>% select(workerid, condition), by=c("workerid"))
+
+trials = merge(trials, subj_info, by=c("workerid"))
+
+trials[, c("test_order", "first_speaker_type", "second_speaker_type", "confident_speaker")] = str_split(trials$condition, "_", simplify=T)
+
+```
+
+## Catch trial performance
+
+```{r catch_trials, echo=FALSE}
+
+get_correct_catch_trial_counts = function (data) {
+  ret = data %>% 
+  filter(., catch_trial == 1) %>%
+  group_by(workerid) %>%
+  summarise(catch_perf = sum(catch_trial_answer_correct))
+  
+  return(ret)
+}
+
+EXCLUDE_BELOW = 9
+
+catch_trial_perf = get_correct_catch_trial_counts(exp_trials)
+
+exclude = catch_trial_perf %>%
+  filter(catch_perf < EXCLUDE_BELOW) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on catch-trial performance."))
+
+
+#final data
+d = trials %>% filter(., !(workerid %in% exclude))
+
+```
+
+```{r perf_plot_1, fig.height=2,fig.width=10, echo=FALSE}
+
+cutoff <- data.frame(yintercept=EXCLUDE_BELOW-0.5, cutoff=factor(EXCLUDE_BELOW-0.5))
+
+
+ggplot(catch_trial_perf, aes(x=factor(workerid), y=catch_perf)) + geom_bar(stat = "identity") + ggtitle("Catch trial performace") + xlab ("participant") + ylab("correct responses") + geom_hline(aes(yintercept=yintercept, linetype=cutoff, color="red"), data=cutoff) + theme(legend.position="none")
+
+```
+
+## Exclusion of random guesses
+
+We further exclude participants who seem to provide random ratings independent of the scene that they are seeing. We quantify this by computing the mean rating for each utterance across all trials for each participant and computing the correlation between a participant's actual ratings and their mean rating. A high correlation is unexpected and indicates that a participant chose ratings at random. We therefore also exclude the data from participants for whom this correlation is larger than 0.75.
+
+```{r random_guess_exclusions, echo=FALSE}
+d_overall_means = d %>%
+  group_by(modal, workerid) %>% 
+  summarise(rating_m_overall = mean(rating))
+
+d_indiv_means =  d %>%
+  group_by(modal,percentage_blue, workerid) %>% 
+  summarise(rating_m = mean(rating))
+
+
+d_indiv_merged = merge(d_indiv_means, d_overall_means, by=c("workerid", "modal"))
+
+cors = d_indiv_merged %>%
+  group_by(workerid) %>%
+  summarise(corr = cor(rating_m, rating_m_overall))
+
+
+exclude = cors %>%
+  filter(corr > 0.75) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on random responses."))
+
+d = d %>% filter(!(workerid %in% exclude))
+
+
+```
+
+
+## Aggregated results
+
+
+```{r aggregate_plots, echo=FALSE, fig.width=10, fig.height=5}
+
+
+
+plot_conditions = function(d, plot_title) {
+  
+  
+  d_means = d %>%
+  group_by(workerid, percentage_blue, modal, speaker_type) %>% 
+  summarise(participant_mean = mean(rating)) %>%
+  group_by(percentage_blue, modal, speaker_type) %>%
+  summarise(mu = mean(participant_mean),
+         ci_high = ci.high(participant_mean), 
+         ci_low = ci.low(participant_mean))
+
+  
+  p1 = ggplot(d_means, aes(x=percentage_blue, y=mu, col=modal)) + 
+  xlab("% blue gumballs") +
+  ylab("mean ratings") +
+  geom_errorbar(aes(ymin=mu-ci_low, ymax=mu+ci_high), width=.1) +
+  geom_line() +
+  geom_point(size=1) +
+  guides(col=guide_legend(title="Expr.")) +
+  colscale +
+  theme(legend.position="bottom") + 
+  ggtitle(plot_title) +
+  facet_wrap(~speaker_type) +
+  geom_vline(xintercept=60, lty=3, col="gray", size=1)
+
+  p2 = ggplot(d, aes(x=percentage_blue_f, y=rating, fill=modal)) + 
+  geom_boxplot() +
+  ggtitle(plot_title) + xlab("percentage") + colscale_fill +   theme(legend.position="bottom")
+
+  by_participant = ggplot( d %>% filter(speaker_type != "prior") %>%
+  group_by(workerid, percentage_blue, modal, speaker_type) %>% 
+  summarise(participant_mean = mean(rating)) , 
+    aes(x=percentage_blue, y=participant_mean, col=modal, lty=speaker_type)
+  ) + 
+  xlab("% blue gumballs") +
+  ylab("mean ratings") +
+  geom_line() +
+  geom_point(size=1) +
+  guides(col=guide_legend(title="Expr.")) +
+  colscale +
+  theme(legend.position="bottom") + ggtitle(plot_title) + facet_wrap(~workerid, ncol = 8)
+  return(list("p1" = p1, "p2" = p2, "by_participant" = by_participant))
+
+}
+
+
+
+  ps1 = plot_conditions(d, "")
+
+  plot(ps1$p1)
+```
+
+
+## Comparison across conditions
+
+```{r comparison_plots, echo=FALSE, fig.width=10, fig.height=5}
+
+
+  d_means = d %>%
+  group_by(workerid, percentage_blue, modal, speaker_type) %>% 
+  summarise(participant_mean = mean(rating)) %>%
+  group_by(percentage_blue, modal, speaker_type) %>%
+  summarise(mu = mean(participant_mean),
+         ci_high = ci.high(participant_mean), 
+         ci_low = ci.low(participant_mean))
+
+  
+  
+  d_means %>% 
+    ggplot(aes(x=percentage_blue, y=mu, col=speaker_type)) + 
+      xlab("% blue gumballs") +
+      ylab("mean ratings") +
+      geom_errorbar(aes(ymin=mu-ci_low, ymax=mu+ci_high), width=.1) +
+      geom_line() +
+      geom_point(size=1) +
+      guides(col=guide_legend(title="Spoeaker type:")) +
+      theme(legend.position="bottom") + 
+      facet_wrap(~modal)
+
+```
+
+## Individual responses
+
+```{r indiv_plots, echo=FALSE, fig.width=10, fig.height=20}
+
+    
+  plot(ps1$by_participant)
+
+
+```
+
+## AUC computation
+
+We use the `AUC` function with the `splines` method to directly compute the AUC.
+
+```{r auc_method_1, echo=FALSE, warning=FALSE, message=FALSE}
+
+auc_method2 = function(d) {
+  auc = AUC(x=d$percentage_blue, y=d$rating_m, method="spline")
+  return(auc)
+}
+
+
+auc_for_participants = function(d, method) {
+  
+  d[d$color=="orange",]$percentage_blue = 100 - d[d$color=="orange",]$percentage_blue 
+  
+  aucs = d %>% 
+    group_by(workerid) %>% 
+    summarize(.groups = "drop_last", test_order = first(test_order),
+              first_speaker_type = first(first_speaker_type),
+              confident_speaker = first(confident_speaker))
+    
+    
+  aucs$auc_might = 0
+  aucs$auc_probably = 0
+
+  
+  i = 1
+  
+  for (wid in unique(d$workerid)) {
+    d.might_ratings = d %>% 
+      filter (workerid == wid) %>%
+      filter (modal == "might") %>%
+      group_by(workerid, percentage_blue) %>%
+      summarise(rating_m = mean(rating))
+    
+    aucs$auc_might[i] = method(d.might_ratings)
+
+    d.probably_ratings = d %>% 
+      filter (workerid == wid) %>%
+      filter (modal == "probably") %>%
+      group_by(workerid, percentage_blue) %>%
+      summarise(rating_m = mean(rating))
+    
+    aucs$auc_probably[i] = method(d.probably_ratings)
+
+    i = i + 1
+  }
+  
+  aucs$auc_diff = aucs$auc_might - aucs$auc_probably
+  
+  return(aucs)
+}
+
+#AUCs for cautious speaker ratings 
+aucs.cautious = d %>% filter(speaker_type == "cautious") %>% auc_for_participants(., method=auc_method2)
+
+#AUCs for confident speaker ratings 
+aucs.confident = d %>% filter(speaker_type == "confident") %>% auc_for_participants(., method=auc_method2)
+
+
+
+```
+
+
+```{r auc_method1_plots, fig.width=4, fig.height=4, echo=FALSE}
+
+aucs.cautious$cond = "cautious (might-biased)"
+
+aucs.confident$cond = "confident (probably-biased)"
+
+
+aucs.all = rbind(aucs.cautious, aucs.confident)
+
+
+aucs.all = aucs.all %>% 
+  group_by(., cond) %>% 
+  summarise(., auc_diff_m = mean(auc_diff), 
+               ci_high = ci.high(auc_diff), 
+               ci_low = ci.low(auc_diff))
+
+
+
+
+ggplot(aucs.all, aes(x=0, y=auc_diff_m, color=cond)) +
+    geom_errorbar(aes(ymin=auc_diff_m-ci_low, ymax=auc_diff_m+ci_high), width=.1) +
+    geom_point() +
+    xlab("") +
+    ylab("AUC difference (might ratings - probably ratings)") +
+    theme(axis.ticks=element_blank(), axis.text.x=element_blank(),
+          panel.grid.minor=element_blank(), 
+          plot.background=element_blank()) +
+    xlim(-.2, .2) 
+
+```
+
+t-test and regression model with control variables:
+
+```{r t_test_method1, echo=FALSE}
+
+print(t.test(aucs.cautious$auc_diff, aucs.confident$auc_diff, var.equal=TRUE))
+
+auc_d = rbind(aucs.cautious, aucs.confident)
+
+auc_d$cond = factor(auc_d$cond)
+auc_d$test_order = factor(auc_d$test_order)
+auc_d$first_speaker_type = factor(auc_d$first_speaker_type)
+auc_d$confident_speaker = factor(auc_d$confident_speaker)
+
+contrasts(auc_d$cond) = contr.sum(2)
+contrasts(auc_d$test_order) = contr.sum(2)
+contrasts(auc_d$first_speaker_type) = contr.sum(2)
+contrasts(auc_d$confident_speaker) = contr.sum(2)
+
+model = lmer(formula= auc_diff ~ cond + test_order + first_speaker_type + confident_speaker + first_speaker_type * cond + (1| workerid), data = auc_d)
+
+print(summary(model))
+
+```
+
+### Clustering analyses
+
+```{r clustering_1}
+
+library(mclust)
+aucs_diff = merge(aucs.cautious, aucs.confident, by=c("workerid"))
+aucs_diff$diff_of_diffs = aucs_diff$auc_diff.x - aucs_diff$auc_diff.y
+
+aucs_diff %>% ggplot(aes(x=diff_of_diffs)) + geom_density() + geom_jitter(aes(y=0), width=0, height=0.001)  + ggtitle("Raw data + estimated density")
+
+
+```
+
+### Gaussian mixture models of diffeences of AUC differences
+
+1 Cluster
+
+```{r cluster_mclust1}
+
+fit1 = Mclust(aucs_diff$diff_of_diffs, G=1)
+print(summary(fit1, parameters=2))
+
+```
+
+
+2 Clusters
+
+```{r cluster_mclust2}
+
+fit2 = Mclust(aucs_diff$diff_of_diffs, G=2)
+print(summary(fit2, parameters=T))
+
+```
+
+
+3 Clusters
+
+```{r cluster_mclust3}
+
+fit3 = Mclust(aucs_diff$diff_of_diffs, G=3)
+print(summary(fit3, parameters=T))
+
+```
+
+According to the Bayesian information criterion, a model with two clusters describes the data best.
+
+Fitted model:
+
+```{r }
+aucs_diff %>% 
+  ggplot(aes(x=diff_of_diffs)) + 
+    geom_jitter(aes(y=0, color=first_speaker_type.x), width=0, height=0.001)  +
+    ggtitle("Raw data + Components of gaussian mixture") + 
+    stat_function(fun = dnorm, args = list(mean = fit2$parameters$mean[1], sd = sqrt(fit2$parameters$variance$sigmasq[1]))) + 
+    stat_function(fun = dnorm, args = list(mean = fit2$parameters$mean[2], sd = sqrt(fit2$parameters$variance$sigmasq[2])))
+```
+
+## Compute likelihoods based on the adaptation model
+
+```{r analyze_likelihoods, echo=F, message=F}
+
+# load model estimates (in original adaptation repo)
+d_likelihoods.cautious = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-01__prior_exp_post-cautious.likelihoods")
+  
+d_likelihoods.confident = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-01__prior_exp_post-confident.likelihoods")
+  
+d_likelihoods.merged = merge(d_likelihoods.cautious, 
+                               d_likelihoods.confident,
+                               by=c("workerid", "condition"))
+  
+d_likelihoods.merged = d_likelihoods.merged %>% 
+  mutate(most_likely_model = 
+           case_when(likelihood.x > likelihood.y ~ "cautious", 
+                     TRUE ~ "confident" ) ) %>%
+  rename(likelihood.cautious = likelihood.x, 
+         likelihood.confident = likelihood.y) 
+  
+# compute likelihood ratio
+d.lr = d_likelihoods.merged %>% 
+  pivot_longer(starts_with("likelihood."), 
+               names_prefix="likelihood.", 
+               names_to="likelihood") %>% 
+  group_by(workerid, condition, most_likely_model) %>%
+  summarise(likelihood_ratio = diff(value)) %>%
+  ungroup() %>%
+  select(workerid, condition, likelihood_ratio)
+  
+d_likelihoods.merged =  merge(d_likelihoods.merged, 
+                              d.lr, 
+                              by=c("workerid", "condition"))
+  
+d.all = merge(d_likelihoods.merged, d %>%
+                  select(-condition) %>% 
+                  group_by(workerid, 
+                           speaker_type, 
+                           test_order, 
+                           noticed_manipulation) %>% 
+                  summarise(
+                    first_speaker_type = first(first_speaker_type)) %>%
+                  rename(condition = speaker_type), 
+                by=c("workerid", "condition"))
+
+
+# plot inferred model by condition  
+d.all %>% 
+  ggplot(aes(x=most_likely_model, fill=first_speaker_type)) + 
+    geom_bar(position = "dodge") + 
+    facet_wrap(~condition)
+  
+d.all %>% 
+  ggplot(aes(x=most_likely_model)) + 
+    geom_bar()
+  
+d.aggregated_stats = d.all %>% 
+  filter(condition != "prior") %>%
+    group_by(workerid, 
+             first_speaker_type, 
+             test_order, 
+             noticed_manipulation) %>%
+    summarise(cautious_count = sum(most_likely_model == "cautious"),
+              confident_count = sum(most_likely_model == "confident"),
+              aligned_count = sum(most_likely_model == condition)) %>% 
+    mutate( first_adaptation_speaker_count = 
+              case_when(first_speaker_type == "cautiousfirst" ~ cautious_count,
+                        TRUE ~ confident_count)) 
+  
+
+
+d.aggregated_stats %>% 
+  ggplot(aes(x=first_adaptation_speaker_count)) +
+    geom_bar() +
+    facet_grid(~first_speaker_type)
+  
+d.aggregated_stats %>% 
+  ggplot(aes(x=aligned_count)) +
+    geom_bar()
+   
+d.aggregated_stats %>% 
+  ggplot(aes(x=aligned_count)) +
+  geom_bar() + 
+  facet_wrap(~noticed_manipulation)
+ 
+d.post_test = d.all %>% 
+  filter(condition != "prior") %>%
+  mutate(condition = factor(condition), 
+         test_order = factor(test_order), 
+         first_speaker_type = factor(first_speaker_type),
+         most_likely_model = factor(most_likely_model))
+
+# use sum-coding    
+contrasts(d.post_test$condition) = contr.sum(2)
+colnames(contrasts(d.post_test$condition)) = c("cautious")
+contrasts(d.post_test$test_order) = contr.sum(2)
+colnames(contrasts(d.post_test$test_order)) = c("parallel")
+contrasts(d.post_test$first_speaker_type) = contr.sum(2)
+colnames(contrasts(d.post_test$first_speaker_type)) = c("cautious")
+
+# logistic regression ME model predicting the most likely condition
+model = glmer(formula = most_likely_model ~ condition + 
+                test_order + 
+                first_speaker_type + 
+                first_speaker_type * condition + 
+                (1| workerid), 
+              data = d.post_test, family = "binomial")
+
+print(summary(model))
+
+# linear regression ME model predicting the likelihood ratio
+model1 = lmer(formula=likelihood_ratio ~ 
+               condition + 
+               test_order + 
+               first_speaker_type + 
+               first_speaker_type * condition + 
+               (1| workerid), 
+             data = d.post_test)
+
+print(summary(model1))
+
+
+d.post_test = merge(d.post_test, d.all %>% 
+                      filter(condition == "prior") %>% 
+                      select(workerid, likelihood_ratio) %>% 
+                      rename(prior_likelihood_ratio = likelihood_ratio))
+
+# linear regression ME model predicting the likelihood ratio + predictor based on prior
+
+model2 = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               (1| workerid), 
+             data = d.post_test)
+
+print(summary(model2))
+
+anova(model1, model2)
+
+
+```      
+        
+```{r likelihood_plots,echo=FALSE, fig.width=10, fig.height=10}
+      
+      d_likelihoods.merged %>% 
+        ggplot(aes(y=likelihood_ratio, 
+                   x=(condition != "prior"), 
+                   col=condition)) + 
+          facet_wrap(~workerid) + geom_point() + geom_hline(yintercept=0, col="black", size=1)
+
+```
+
+### List of adapters:
+
+
+
+```{r adapters_list, echo=F}
+   knitr::kable(d.aggregated_stats %>% 
+                  filter(aligned_count == 2))
+
+  
+  #prolific_ids = read.csv("../../proliferate/1_talker_specific_adaptation_prior_exp_test/1_talker_specific_adaptation_prior_exp_test-workerids.csv")
+
+  # write them to file
+  #d.aggregated_stats %>% 
+  #  filter(aligned_count == 2) %>% 
+  #  ungroup() %>%
+  #  select(workerid) %>%
+  #  merge(prolific_ids) %>% 
+  #  select(workerid, prolific_participant_id) %>%
+  #  write.csv(file="../../proliferate/1_talker_specific_adaptation_prior_exp_test/adapters-workerids.csv")
+
+  #d.aggregated_stats %>% 
+  #  filter(aligned_count == 1) %>% 
+  #  ungroup() %>%
+  #  select(workerid) %>%
+  #  merge(prolific_ids) %>% 
+  #  select(workerid, prolific_participant_id) %>%
+  #  write.csv(file="../../proliferate/1_talker_specific_adaptation_prior_exp_test/nonadapters-workerids.csv")
+
+    
+```
+
+### List of reverse adapters:
+
+```{r reverseadapters_list, echo=F}
+   knitr::kable(d.aggregated_stats %>% 
+                  filter(aligned_count == 0))
+```

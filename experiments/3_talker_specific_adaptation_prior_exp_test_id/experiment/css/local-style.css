@@ -1,0 +1,53 @@
+.slider {
+  /* default is width 400 and margin 10 */
+	width: 400;
+	margin: 10px;
+}
+
+input.button {
+  padding: 10px 40px 10px 40px;
+  margin: 5px;
+  border: 1px solid black;
+  font-size: 14pt;
+  font-weight: bold;
+  background-color: #eee;
+  cursor: pointer;
+}
+
+p.train-instructions {
+  margin: 50px 0 0 0;
+}
+
+.slide {
+  height: 825px;
+}
+
+.test-stimulus {
+  font-size: 2em;
+  font-weight: bold;
+  font-style: italic;
+}
+
+.err {
+	color: red;
+}
+
+.long_form {
+  text-align: left;
+}
+
+#i0 p  {
+  text-align: left;
+}
+
+#pre_instructions p {
+  text-align: left;
+}
+
+#instructions p {
+  text-align: left;
+}
+
+#test_instructions p {
+  text-align: left;
+}
