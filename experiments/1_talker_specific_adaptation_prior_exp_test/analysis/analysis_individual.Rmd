@@ -576,6 +576,12 @@ d.post_test = merge(d.post_test, d.all %>%
                       select(workerid, likelihood_ratio) %>% 
                       rename(prior_likelihood_ratio = likelihood_ratio))
 
+anova(model1)
+
+library(MuMIn)
+
+r.squaredGLMM(model1)
+
 # linear regression ME model predicting the likelihood ratio + predictor based on prior
 
 model2 = lmer(formula= likelihood_ratio ~ condition + 
@@ -589,7 +595,10 @@ model2 = lmer(formula= likelihood_ratio ~ condition +
 
 print(summary(model2))
 
+r.squaredGLMM(model2)
+
 anova(model1, model2)
+
 
 
 ```      
