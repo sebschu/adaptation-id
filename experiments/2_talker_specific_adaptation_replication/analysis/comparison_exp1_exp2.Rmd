@@ -1,0 +1,253 @@
+---
+title: "Comparison between prior-exp-test experiment and exp-test experiment"
+author: "Sebastian Schuster"
+date: "10/27/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+library(ramify)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(gridExtra)
+library(DescTools)
+library(splines)
+library(stringr)
+source("helpers.R")
+
+
+
+theme_set(theme_bw())
+
+colscale = scale_color_manual(values=c("#7CB637", "#666666", "#4381C1")) 
+colscale_fill = scale_fill_manual(values=c("#7CB637", "#666666", "#4381C1")) 
+
+remove_quotes = function(d) {
+  if (!is.null(d$modal)) {
+    d$modal = gsub('"', '', d$modal)
+  }
+  d$color = gsub('"', '', d$color)
+  d$speaker_type = gsub('"', '', d$speaker_type)
+
+  return(d)
+}
+
+format_data = function(d) {
+  
+    drops <- c("modal1","rating1")
+  d2 = d[ , !(names(d) %in% drops)]
+  setnames(d2, old=c("rating2","modal2"), new=c("rating", "modal"))
+
+  drops <- c("modal2","rating2")
+  d3 = d[ , !(names(d) %in% drops)]
+  setnames(d3, old=c("rating1","modal1"), new=c("rating", "modal"))
+
+  drops <- c("modal2", "rating2", "modal1", "rating1")
+  d4 = d[ , !(names(d) %in% drops)]
+  d4$rating = d4$rating_other
+  d4$modal = "other"
+
+  d = rbind(d2, d3, d4)
+
+  d$modal = gsub('"', '', d$modal)
+  d$modal = factor(d$modal, levels = c("might", "probably", "other"), ordered = T)
+  
+  d$percentage_blue_f = factor(d$percentage_blue)
+  d_blue = d %>% filter(., grepl("blue", sentence2))
+  d_orange = d %>% filter(., grepl("orange", sentence2))
+
+  d_orange_reverse = d_orange
+  d_orange_reverse$percentage_blue = 100-d_orange$percentage_blue
+
+  d_comparison = rbind(d_blue, d_orange_reverse)
+  d_comparison$blue= grepl("blue", d_comparison$sentence2)
+  d_comparison$percentage_blue_f = factor(d_comparison$percentage_blue)
+
+  return(d_comparison)
+  
+}
+
+
+```
+
+```{r data, echo=FALSE}
+# Load data
+
+# Experiment 1
+
+trials.exp1 = remove_quotes(format_data(read.csv("../../1_talker_specific_adaptation_prior_exp_test/data/1_talker_specific_adaptation_prior_exp_test-trials.csv")))
+exp_trials.exp1 = remove_quotes(read.csv("../../1_talker_specific_adaptation_prior_exp_test/data/1_talker_specific_adaptation_prior_exp_test-exp_trials.csv"))
+
+conditions.exp1 = read.csv("../../1_talker_specific_adaptation_prior_exp_test/data/1_talker_specific_adaptation_prior_exp_test-condition.csv")
+
+trials.exp1 = merge(trials.exp1, conditions.exp1 %>% select(workerid, condition), by=c("workerid"))
+
+subj_info.exp1 = read.csv("../../1_talker_specific_adaptation_prior_exp_test/data/1_talker_specific_adaptation_prior_exp_test-subject_information.csv") %>% select(workerid, noticed_manipulation)
+
+trials.exp1 = merge(trials.exp1, subj_info.exp1, by=c("workerid"))
+
+
+trials.exp1[, c("test_order", "first_speaker_type", "second_speaker_type", "confident_speaker")] = str_split(trials.exp1$condition, "_", simplify=T)
+
+
+# Experiment 2
+trials.exp2 = remove_quotes(format_data(read.csv("../data/2_talker_specific_adaptation_replication-trials.csv")))
+exp_trials.exp2 = remove_quotes(read.csv("../data/2_talker_specific_adaptation_replication-exp_trials.csv"))
+
+conditions.exp2 = read.csv("../data/2_talker_specific_adaptation_replication-condition.csv")
+
+trials.exp2 = merge(trials.exp2, conditions.exp2 %>% select(workerid, condition), by=c("workerid"))
+
+subj_info.exp2 = read.csv("../data/2_talker_specific_adaptation_replication-subject_information.csv") %>% select(workerid, noticed_manipulation)
+
+trials.exp2 = merge(trials.exp2, subj_info.exp2, by=c("workerid"))
+
+
+trials.exp2[, c("test_order", "first_speaker_type", "second_speaker_type", "confident_speaker")] = str_split(trials.exp2$condition, "_", simplify=T)
+
+```
+
+## Catch trial performance
+
+```{r catch_trials, echo=FALSE}
+
+get_correct_catch_trial_counts = function (data) {
+  ret = data %>% 
+  filter(., catch_trial == 1) %>%
+  group_by(workerid) %>%
+  summarise(catch_perf = sum(catch_trial_answer_correct))
+  
+  return(ret)
+}
+
+EXCLUDE_BELOW = 9
+
+catch_trial_perf.exp1 = get_correct_catch_trial_counts(exp_trials.exp1)
+
+exclude = catch_trial_perf.exp1 %>%
+  filter(catch_perf < EXCLUDE_BELOW) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on catch-trial performance from Experiment 1."))
+
+d.exp1 = trials.exp1 %>% filter(., !(workerid %in% exclude))
+
+
+
+catch_trial_perf.exp2 = get_correct_catch_trial_counts(exp_trials.exp2)
+
+exclude = catch_trial_perf.exp2 %>%
+  filter(catch_perf < EXCLUDE_BELOW) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on catch-trial performance from Experiment 2."))
+
+
+#final data
+d.exp2 = trials.exp2 %>% filter(., !(workerid %in% exclude))
+
+```
+
+
+
+## Exclusion of random guesses
+
+We further exclude participants who seem to provide random ratings independent of the scene that they are seeing. We quantify this by computing the mean rating for each utterance across all trials for each participant and computing the correlation between a participant's actual ratings and their mean rating. A high correlation is unexpected and indicates that a participant chose ratings at random. We therefore also exclude the data from participants for whom this correlation is larger than 0.75.
+
+```{r random_guess_exclusions, echo=FALSE}
+
+d_overall_means = d.exp1 %>%
+  group_by(modal, workerid) %>% 
+  summarise(rating_m_overall = mean(rating))
+
+d_indiv_means =  d.exp1 %>%
+  group_by(modal,percentage_blue, workerid) %>% 
+  summarise(rating_m = mean(rating))
+
+
+d_indiv_merged = merge(d_indiv_means, d_overall_means, by=c("workerid", "modal"))
+
+cors = d_indiv_merged %>%
+  group_by(workerid) %>%
+  summarise(corr = cor(rating_m, rating_m_overall))
+
+
+exclude = cors %>%
+  filter(corr > 0.75) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on random responses in Experiment 1."))
+
+d.exp1 = d.exp1 %>% filter(!(workerid %in% exclude))
+
+
+
+d_overall_means = d.exp2 %>%
+  group_by(modal, workerid) %>% 
+  summarise(rating_m_overall = mean(rating))
+
+d_indiv_means =  d.exp2 %>%
+  group_by(modal,percentage_blue, workerid) %>% 
+  summarise(rating_m = mean(rating))
+
+
+d_indiv_merged = merge(d_indiv_means, d_overall_means, by=c("workerid", "modal"))
+
+cors = d_indiv_merged %>%
+  group_by(workerid) %>%
+  summarise(corr = cor(rating_m, rating_m_overall))
+
+
+exclude = cors %>%
+  filter(corr > 0.75) %>%
+  .$workerid
+
+
+print(paste("Excluded", length(exclude), "participants based on random responses in Experiment 2."))
+
+d.exp2 = d.exp2 %>% filter(!(workerid %in% exclude))
+
+
+d.exp1$experiment = "prior-exposure-test"
+d.exp2$experiment = "exposure-test"
+
+d = rbind(d.exp1, d.exp2)
+
+```
+
+
+## Comparisons plots
+
+
+```{r aggregate_plots, echo=FALSE, fig.width=10, fig.height=8}
+
+d_means = d %>%
+  group_by(workerid, percentage_blue, modal, speaker_type, experiment) %>% 
+  summarise(participant_mean = mean(rating)) %>%
+  group_by(percentage_blue, modal, speaker_type, experiment) %>%
+  summarise(mu = mean(participant_mean),
+         ci_high = ci.high(participant_mean), 
+         ci_low = ci.low(participant_mean))
+
+d_means %>% filter(speaker_type != "prior") %>%
+  ggplot(aes(x=percentage_blue, y=mu, col=experiment)) + 
+    xlab("% blue gumballs") +
+    ylab("mean ratings") +
+    geom_errorbar(aes(ymin=mu-ci_low, ymax=mu+ci_high), width=.1) +
+    geom_line() +
+    geom_point(size=1) +
+    guides(col=guide_legend(title="Expr.")) +
+    theme(legend.position="bottom") + 
+    facet_wrap(~speaker_type+modal, nrow = 2)
+
+```
+

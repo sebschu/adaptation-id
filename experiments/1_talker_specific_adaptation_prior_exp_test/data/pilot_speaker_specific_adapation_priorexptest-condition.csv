@@ -1,0 +1,4 @@
+workerid,proliferate.condition,condition,error
+1348,cond3,reverse_confident_cautious_confidentf,
+1347,cond4,reverse_cautious_confident_confidentm,
+1346,cond0,parallel_cautious_confident_confidentm,

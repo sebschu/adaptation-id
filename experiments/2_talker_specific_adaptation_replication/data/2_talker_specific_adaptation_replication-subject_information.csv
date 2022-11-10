@@ -1,0 +1,65 @@
+workerid,proliferate.condition,age,asses,comments,education,enjoyment,gender,language,notice,other_languages,error,noticed_manipulation
+1474,cond2,34,Yes,,2,1,Female,english,no,,,0
+1492,cond2,48,Yes,,3,1,Male,eng,yes,,,0
+1499,cond2,36,No,,3,2,Male,English,No,English,,0
+1487,cond2,46,Yes,,3,1,Female,English,The man seemed much more optimistic/more likely to predict is was likely/possible to get the color the girl wanted even when the odds were low.,NA,,1
+1462,cond2,38,Yes,When it asked me about which picture i saw on the previous screen on one of them i accidently click the wrong one,1,2,Male,english,it seemed like the guy had a different point of view ,none,,1
+1454,cond2,60,Yes,It may have something to do with the emphasis people put on their speech. ,3,1,Female,English,No,none,,0
+1479,cond2,51,Yes,It was about testing your attention span and how well you can concentrate for a long period of time.,3,1,Male,english,yes,,,0
+1440,cond2,59,Yes,,4,1,Male,english,yes,"Spanish, German",,0
+1478,cond3,23,Yes,Maybe have the people in the study speak a bit more clearly,2,1,Female,English,I think so,,,0
+1473,cond3,39,Yes,,2,2,Female,English,No,,,0
+1485,cond3,37,Yes,,3,1,Male,english,one was male one was female,,,0
+1498,cond3,28,Yes,,1,1,Male,English,one was male and was female,,,0
+1439,cond3,37,Yes,,2,2,Male,englis,yes,,,0
+1453,cond3,33,Yes,,4,2,Male,English,Yes,,,0
+1445,cond3,23,Yes,,2,1,Male,English,Yes one was male the other wasn't ,Hindi,,0
+1461,cond3,35,Yes,,4,2,Male,English,yes,,,0
+1471,cond6,42,Yes,,2,1,Female,english,no,,,0
+1444,cond6,24,Yes,,3,1,Female,English,No,,,0
+1484,cond6,38,No,,3,1,Female,english,no,spanish,,0
+1497,cond6,37,Yes,,3,1,Male,english,woman more conservative,,,1
+1460,cond6,61,Yes,,2,2,Female,English,no,,,0
+1476,cond6,51,Yes,,3,2,Male,english,yes male/female,no,,0
+1437,cond6,64,Yes,,4,2,Female,English,"other than one was male and one was female, no",French,,0
+1452,cond6,46,Yes,The experiment was fun.,3,2,Female,English,"Yes, the woman would say the girl might get the desired color if there was a mixture of colors, even if the colors were not equally represented. The man, however, would indicate a higher change of getting a desired color if there was more of that color by saying the chlid would probably get the color.",,,1
+1472,cond5,29,Yes,n/a,2,1,Male,English,no,,,0
+1442,cond5,44,Yes,Gender differences in auditory learning,3,2,Female,English,yes,German,,0
+1490,cond5,50,Yes,,3,2,Female,English,yes,,,0
+1450,cond5,26,Yes,n/a,1,1,Male,english,no,n/a,,0
+1496,cond5,40,Yes,,2,1,Female,English,Yes.  The man was more certain about the probability of which color the child would get.,,,1
+1458,cond5,44,Yes,I guess this was about probability. I'm not sure what else.,3,2,Female,English,Yes,Spanish,,0
+1466,cond5,36,Yes,,3,2,Male,English,"they used might differently - the male used it to mean slightly greater than 50%, while the woman used it to mean well under 50% chance",,,1
+1501,cond5,33,Yes,It was a good study. thanks ,3,2,Male,English,"Yes, if it was more than 6 balls the lady mentioned, probably. ",,,1
+1481,cond7,32,Yes,,4,2,Other,English,"The first speaker used ""probably"" more generously (when there was just a simple majority of the color) and the second speaker used ""probably"" only when there was all but 3 balls in the color",Spanish (not fluent; took 2 years in college but no longer speak regularly),,1
+1441,cond7,36,Yes,no comments,2,1,Female,English,yes,,,0
+1465,cond7,33,Yes,,3,2,Male,English,Not really,Spanish,,0
+1495,cond7,44,Yes,"From the design of the study I assume it was about whether we thought the male or female speakers would assess probability different (might vs. probably) but it didn't really feel like they did, so maybe I'm wrong... or in the control group?",1,2,Male,English,"Other than the obvious, no","Spanish, German",,0
+1457,cond7,43,Yes,,3,2,Male,English,just their gender,N/A,,0
+1448,cond7,24,Yes,n/a,3,1,Female,English,different sexes,,,0
+1470,cond7,32,Yes,,3,2,Male,English,"One was male, the other was female.",,,0
+1489,cond7,54,Yes,"Not sure what the experiment was about, can't think of anything specifically the experiment was about. Thanks for asking for feedback!",4,1,Female,English,No,,,0
+1494,cond1,54,Yes,,3,2,Female,English,"It seemed like the woman used might more than probably like the man and in some cases not ones I would've said that way, but everyone is different.  I thought the man was more clear and exact in responses.",,,1
+1447,cond1,55,Yes,,3,2,Female,English,yes,,,0
+1456,cond1,42,Yes,None.,2,1,Female,English,"One female, one male.",None,,0
+1438,cond1,29,Yes,higher pay ,3,2,Female,english,I felt the woman was more optimistic,none,,1
+1469,cond1,24,Yes,,3,2,Female,English,the female speaker had a speech impediment,,,0
+1480,cond1,27,Yes,,2,2,Female,english,the first speaker seemed to be more accurate,,,1
+1488,cond1,28,Yes,n/a,3,1,Female,English,one man and the other a woman,Spanish,,0
+1464,cond1,36,Yes,none,2,2,Female,english,one is male and the other is female,,,0
+1468,cond0,34,Yes,,2,2,Female,English,No,Spanish,,0
+1486,cond0,55,Yes,,3,1,Female,English,yes,,,0
+1446,cond0,48,Yes,,3,2,Female,English,"The man used ""probably"" more than the woman when the gumball colors were more evenly distributed, whereas the woman used ""might"" unless there was a clear majority.",,,1
+1463,cond0,29,Yes,I thought you would give us the same sentence in different languages at a certain point.,4,2,Male,English,"Yes, woman vs man",Farsi,,0
+1477,cond0,32,Yes,,3,1,Male,English,The lady was more accurate,"Japanese, Spanish, Mandarin",,1
+1455,cond0,31,Yes,,1,2,Female,English,the female was more friendly and smiled,,,0
+1436,cond0,35,Yes,,4,1,Female,english,"The woman seemed more optimistic towards the child when the statistics were against her- ""you might get x""",,,1
+1493,cond0,34,Yes,,4,1,Female,English,the second (male?) speaker seemed to want to offer the girl a bit more hope that she'd get what she'd want? (over-estimate the number of desired color compared to first speaker?),"French, Spanish",,1
+1483,cond4,21,Yes,It's kinda boring.,1,1,Male,English & Spanish,"One was male, One was female.",Japanese,,0
+1459,cond4,21,No,,1,2,Male,English,Gender,,,0
+1491,cond4,38,Yes,I enjoyed this experiment. I found it interesting to see how differently the two speakers interpreted probability. ,2,2,Male,English,"The female speaker tended to say ""might get"" for situations closer to a 50/50, whereas the male speaker said ""probably get"" in most of these situations based on which one he thought carried the majority, even if it was really close.. ",,,1
+1443,cond4,30,No,"This was an interesting experiment, thank you for the fair pay.",3,2,Other,English,"The woman seemed able to accurately judge whether the colors were 50/50 or a different split, and would always say the most accurate explanation of outcome. The man's response tended to be less accurate as though he could not easily judge the division of colors",,,1
+1451,cond4,62,Yes,,3,1,Male,english,different gender and voices,,,0
+1475,cond4,55,Yes,I did find the experiment interesting. ,1,1,Female,english,one female and one male,none,,0
+1500,cond4,38,Yes,Thanks!,3,2,Male,English,No,,,0
+1467,cond4,66,Yes,Interesting and rather fun.,3,2,Female,English,Yes,none,,0
