@@ -81,12 +81,12 @@ format_data = function(d) {
 ```{r data, echo=FALSE}
 # Load data
 
-trials = remove_quotes(format_data(read.csv("../data/1_talker_specific_adaptation_prior_exp_test-trials.csv")))
-exp_trials = remove_quotes(read.csv("../data/1_talker_specific_adaptation_prior_exp_test-exp_trials.csv"))
+trials = remove_quotes(format_data(read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-trials.csv")))
+exp_trials = remove_quotes(read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-exp_trials.csv"))
 
-conditions = read.csv("../data/1_talker_specific_adaptation_prior_exp_test-condition.csv")
+conditions = read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-condition.csv")
 
-subj_info = read.csv("../data/1_talker_specific_adaptation_prior_exp_test-subject_information.csv") %>% select(workerid, noticed_manipulation)
+subj_info = read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-subject_information.csv") %>% select(workerid, noticed_manipulation)
 
 trials = merge(trials, conditions %>% select(workerid, condition), by=c("workerid"))
 
@@ -109,7 +109,7 @@ get_correct_catch_trial_counts = function (data) {
   return(ret)
 }
 
-EXCLUDE_BELOW = 9
+EXCLUDE_BELOW = 11
 
 catch_trial_perf = get_correct_catch_trial_counts(exp_trials)
 
@@ -135,38 +135,7 @@ ggplot(catch_trial_perf, aes(x=factor(workerid), y=catch_perf)) + geom_bar(stat 
 
 ```
 
-## Exclusion of random guesses
 
-We further exclude participants who seem to provide random ratings independent of the scene that they are seeing. We quantify this by computing the mean rating for each utterance across all trials for each participant and computing the correlation between a participant's actual ratings and their mean rating. A high correlation is unexpected and indicates that a participant chose ratings at random. We therefore also exclude the data from participants for whom this correlation is larger than 0.75.
-
-```{r random_guess_exclusions, echo=FALSE}
-d_overall_means = d %>%
-  group_by(modal, workerid) %>% 
-  summarise(rating_m_overall = mean(rating))
-
-d_indiv_means =  d %>%
-  group_by(modal,percentage_blue, workerid) %>% 
-  summarise(rating_m = mean(rating))
-
-
-d_indiv_merged = merge(d_indiv_means, d_overall_means, by=c("workerid", "modal"))
-
-cors = d_indiv_merged %>%
-  group_by(workerid) %>%
-  summarise(corr = cor(rating_m, rating_m_overall))
-
-
-exclude = cors %>%
-  filter(corr > 0.75) %>%
-  .$workerid
-
-
-print(paste("Excluded", length(exclude), "participants based on random responses."))
-
-d = d %>% filter(!(workerid %in% exclude))
-
-
-```
 
 
 ## Aggregated results
@@ -449,9 +418,9 @@ aucs_diff %>%
 ```{r analyze_likelihoods, echo=F, message=F}
 
 # load model estimates (in original adaptation repo)
-d_likelihoods.cautious = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-01__prior_exp_post-cautious.likelihoods")
+d_likelihoods.cautious = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-03_prior_exp_post_id-cautious.likelihood")
   
-d_likelihoods.confident = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-01__prior_exp_post-confident.likelihoods")
+d_likelihoods.confident = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-03_prior_exp_post_id-confident.likelihood")
   
 d_likelihoods.merged = merge(d_likelihoods.cautious, 
                                d_likelihoods.confident,
