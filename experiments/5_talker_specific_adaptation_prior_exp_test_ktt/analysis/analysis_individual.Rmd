@@ -1,7 +1,7 @@
 ---
 title: "Prior-exposure-test Experiment"
 author: "Sebastian Schuster"
-date: "10/24/2022"
+date: "11/30/2022"
 output: html_document
 ---
 
@@ -81,16 +81,16 @@ format_data = function(d) {
 ```{r data, echo=FALSE}
 # Load data
 
-trials = remove_quotes(format_data(read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-trials.csv")))
-exp_trials = remove_quotes(read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-exp_trials.csv"))
+trials = remove_quotes(format_data(read.csv("../data/5_talker_specific_adaptation_prior_exp_test_ktt-trials.csv")))
+exp_trials = remove_quotes(read.csv("../data/5_talker_specific_adaptation_prior_exp_test_ktt-exp_trials.csv"))
 
-conditions = read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-condition.csv")
+conditions = read.csv("../data/5_talker_specific_adaptation_prior_exp_test_ktt-condition.csv")
 
-subj_info = read.csv("../data/3_talker_specific_adaptation_prior_exp_test_id-subject_information.csv") %>% select(workerid, noticed_manipulation)
+#subj_info = read.csv("../data/5_talker_specific_adaptation_prior_exp_test_ktt-subject_information.csv") %>% select(workerid)#, noticed_manipulation)
 
 trials = merge(trials, conditions %>% select(workerid, condition), by=c("workerid"))
 
-trials = merge(trials, subj_info, by=c("workerid"))
+#trials = merge(trials, subj_info, by=c("workerid"))
 
 trials[, c("test_order", "first_speaker_type", "second_speaker_type", "confident_speaker")] = str_split(trials$condition, "_", simplify=T)
 
@@ -117,8 +117,9 @@ exclude = catch_trial_perf %>%
   filter(catch_perf < EXCLUDE_BELOW) %>%
   .$workerid
 
+exclude = cbind(exclude, c(1640)) # some technical glitch with that participant
 
-print(paste("Excluded", length(exclude), "participants based on catch-trial performance."))
+print(paste("Excluded", length(exclude), "of", length(unique(trials$workerid)), "participants based on catch-trial performance."))
 
 
 #final data
@@ -418,9 +419,9 @@ aucs_diff %>%
 ```{r analyze_likelihoods, echo=F, message=F}
 
 # load model estimates (in original adaptation repo)
-d_likelihoods.cautious = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-03_prior_exp_post_id-cautious.likelihood")
+d_likelihoods.cautious = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-05_prior_exp_post_ktt-cautious.likelihood")
   
-d_likelihoods.confident = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-03_prior_exp_post_id-confident.likelihood")
+d_likelihoods.confident = read.csv("~/Dropbox/Uni/RA/adaptation/adaptation/models/4_individual_differences/results/id-05_prior_exp_post_ktt-confident.likelihood")
   
 d_likelihoods.merged = merge(d_likelihoods.cautious, 
                                d_likelihoods.confident,
@@ -451,8 +452,8 @@ d.all = merge(d_likelihoods.merged, d %>%
                   select(-condition) %>% 
                   group_by(workerid, 
                            speaker_type, 
-                           test_order, 
-                           noticed_manipulation) %>% 
+                           test_order) %>%  #, 
+                          # noticed_manipulation
                   summarise(
                     first_speaker_type = first(first_speaker_type)) %>%
                   rename(condition = speaker_type), 
@@ -473,8 +474,8 @@ d.aggregated_stats = d.all %>%
   filter(condition != "prior") %>%
     group_by(workerid, 
              first_speaker_type, 
-             test_order, 
-             noticed_manipulation) %>%
+             test_order) %>% #, 
+            # noticed_manipulation) %>%
     summarise(cautious_count = sum(most_likely_model == "cautious"),
               confident_count = sum(most_likely_model == "confident"),
               aligned_count = sum(most_likely_model == condition)) %>% 
@@ -493,10 +494,10 @@ d.aggregated_stats %>%
   ggplot(aes(x=aligned_count)) +
     geom_bar()
    
-d.aggregated_stats %>% 
-  ggplot(aes(x=aligned_count)) +
-  geom_bar() + 
-  facet_wrap(~noticed_manipulation)
+#d.aggregated_stats %>% 
+#  ggplot(aes(x=aligned_count)) +
+#  geom_bar() + 
+#  facet_wrap(~noticed_manipulation)
  
 d.post_test = d.all %>% 
   filter(condition != "prior") %>%
@@ -553,6 +554,9 @@ model2 = lmer(formula= likelihood_ratio ~ condition +
 print(summary(model2))
 
 anova(model1, model2)
+
+write.csv(d.post_test, "../data/adaptation_data-merged.csv")
+
 
 
 ```      

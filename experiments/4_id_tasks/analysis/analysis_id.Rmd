@@ -11,6 +11,7 @@ output:
 library(lme4)
 library(lmerTest)
 library(tidyverse)
+library(effectsize)
 
 theme_set(theme_bw())
 
@@ -312,6 +313,7 @@ d.diff = d %>%
 
 
 d$ktt.score = myNorm(myCenter(d$ktt.score))
+d$likelihood_ratio = myNorm(myCenter(d$likelihood_ratio))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -340,3 +342,171 @@ d.diff %>%
 
 
 ```
+
+```{r power_analysis echo=F}
+library(InteractionPoweR)
+
+test_power<-power_interaction_r2(
+  alpha = 0.05,             # alpha, for the power analysis
+  N =seq(64,168,by=8),                  # sample size
+  r.x1x2.y = -.35,           # interaction effect to test (correlation between x1*x2 and y)
+  r.x1.y = -.20,              # correlation between x1 and y
+  r.x2.y = .05,              # correlation between x2 and y
+  r.x1.x2 = 0.000            # correlation between x1 and x2
+)
+
+```
+
+# Re-run of analysis just with RMET data
+
+```{r rmet_only, echo=F, fig.width=4, fig.height=4}
+
+d = d.adaptation %>% 
+  merge(., d.rmet)
+
+d.adapter_types = d %>% 
+  dplyr::mutate(aligned = (condition == most_likely_model)) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(adapter = (sum(aligned) == 2)) %>%
+  dplyr::group_by(adapter) %>%
+  dplyr::summarize(count = n()) %>%
+  dplyr::mutate(freq = count / sum(count))
+
+print(paste("Number of participants after ID test exclusions:", length(unique(d$workerid))))
+knitr::kable(d.adapter_types)
+
+d = d %>% dplyr::mutate(condition = factor(condition),
+                 test_order = factor(test_order),
+                 first_speaker_type = factor(first_speaker_type))
+contrasts(d$condition) = contr.sum(2)
+colnames(contrasts(d$condition)) = c("cautious")
+contrasts(d$test_order) = contr.sum(2)
+colnames(contrasts(d$test_order)) = c("parallel")
+contrasts(d$first_speaker_type) = contr.sum(2)
+colnames(contrasts(d$first_speaker_type)) = c("cautious")
+
+
+d.diff = d %>% 
+  dplyr::filter(condition == "cautious") %>%
+  dplyr::rename(likelihood_ratio.cautious = likelihood_ratio) %>%
+  dplyr::select(workerid, rmet.score, likelihood_ratio.cautious) %>%
+  merge(d %>% 
+          dplyr::filter(condition == "confident") %>%
+          dplyr::rename(likelihood_ratio.confident = likelihood_ratio) %>%
+          dplyr::select(workerid, likelihood_ratio.confident)) %>%
+  mutate(likelihood_diff = likelihood_ratio.confident - likelihood_ratio.cautious)
+
+
+
+d$rmet.score = myNorm(myCenter(d$rmet.score))
+
+
+model = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               rmet.score * condition +
+               (1| workerid), 
+             data = d)
+step_res = lmerTest::step(model)
+final = lmerTest::get_model(step_res)
+
+print(summary(final))
+
+d.diff %>%
+ ggplot(aes(x=rmet.score, y=likelihood_diff)) + 
+  geom_smooth(method="lm") + 
+  geom_point() + 
+  geom_point(col = "red", pch=3, 
+             data = d.diff %>% 
+               dplyr::group_by(rmet.score) %>% 
+               dplyr::summarize(likelihood_diff = mean(likelihood_diff))) +
+  ggtitle("RMET")
+
+
+
+```
+
+# Re-run of analysis just with RMET + KTT data
+
+```{r rmet_ktt, echo=F, fig.width=4, fig.height=4}
+
+d = d.adaptation %>% 
+  merge(., d.rmet) %>%
+  merge(., d.ktt)
+
+d.adapter_types = d %>% 
+  dplyr::mutate(aligned = (condition == most_likely_model)) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(adapter = (sum(aligned) == 2)) %>%
+  dplyr::group_by(adapter) %>%
+  dplyr::summarize(count = n()) %>%
+  dplyr::mutate(freq = count / sum(count))
+
+print(paste("Number of participants after ID test exclusions:", length(unique(d$workerid))))
+knitr::kable(d.adapter_types)
+
+d = d %>% dplyr::mutate(condition = factor(condition),
+                 test_order = factor(test_order),
+                 first_speaker_type = factor(first_speaker_type))
+contrasts(d$condition) = contr.sum(2)
+colnames(contrasts(d$condition)) = c("cautious")
+contrasts(d$test_order) = contr.sum(2)
+colnames(contrasts(d$test_order)) = c("parallel")
+contrasts(d$first_speaker_type) = contr.sum(2)
+colnames(contrasts(d$first_speaker_type)) = c("cautious")
+
+
+d.diff = d %>% 
+  dplyr::filter(condition == "cautious") %>%
+  dplyr::rename(likelihood_ratio.cautious = likelihood_ratio) %>%
+  dplyr::select(workerid, rmet.score, ktt.score, likelihood_ratio.cautious) %>%
+  merge(d %>% 
+          dplyr::filter(condition == "confident") %>%
+          dplyr::rename(likelihood_ratio.confident = likelihood_ratio) %>%
+          dplyr::select(workerid, likelihood_ratio.confident)) %>%
+  mutate(likelihood_diff = likelihood_ratio.confident - likelihood_ratio.cautious)
+
+
+
+d$rmet.score = myNorm(myCenter(d$rmet.score))
+d$ktt.score = myNorm(myCenter(d$ktt.score))
+
+
+model = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               rmet.score * condition +
+               ktt.score * condition +
+               (1| workerid), 
+             data = d)
+step_res = lmerTest::step(model)
+final = lmerTest::get_model(step_res)
+
+print(summary(final))
+
+print(parameters::standardize_parameters(final))
+
+
+model = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               rmet.score * condition +
+               ktt.score * condition +
+               (1| workerid), 
+             data = d)
+
+print(summary(model))
+
+
+
+
+
+```
+
+

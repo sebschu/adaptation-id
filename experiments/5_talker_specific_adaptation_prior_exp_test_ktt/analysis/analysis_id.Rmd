@@ -1,0 +1,181 @@
+---
+title: "Individual differences experiment"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r init, echo=F}
+
+
+library(lme4)
+library(lmerTest)
+library(tidyverse)
+library(effectsize)
+
+theme_set(theme_bw())
+
+
+myNorm = function(x) {
+  return(x * 2 / (max(x) - min(x)))
+}
+
+```
+
+```{r load_data, echo=F, fig.width=10, fig.height=2}
+
+
+
+d.adaptation = read.csv("../data/adaptation_data-merged.csv")
+d.ktt = read.csv("../data/scores_ktt-anon.csv") %>% 
+  #dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  dplyr::select(workerid, score) %>% 
+  dplyr::rename (ktt.score = score) %>%
+  dplyr::filter(ktt.score > 19)
+
+print(paste("Number of participants before ID test exclusions:", length(unique(d.adaptation$workerid))))
+
+d.adapter_types = d.adaptation %>% 
+  merge(., d.ktt) %>% 
+  dplyr::mutate(aligned = (condition == most_likely_model)) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(adapter = (sum(aligned) == 2)) %>%
+  dplyr::group_by(adapter) %>%
+  dplyr::summarize(count = n()) %>%
+  dplyr::mutate(freq = count / sum(count))
+
+knitr::kable(d.adapter_types)
+
+d = d.adaptation %>% 
+  merge(., d.ktt) 
+
+d.adapter_types = d %>% 
+  dplyr::mutate(aligned = (condition == most_likely_model)) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(adapter = (sum(aligned) == 2)) %>%
+  dplyr::group_by(adapter) %>%
+  dplyr::summarize(count = n()) %>%
+  dplyr::mutate(freq = count / sum(count))
+
+print(paste("Number of participants after ID test exclusions:", length(unique(d$workerid))))
+knitr::kable(d.adapter_types)
+
+d.diff = d %>% 
+  dplyr::filter(condition == "cautious") %>%
+  dplyr::rename(likelihood_ratio.cautious = likelihood_ratio) %>%
+  dplyr::select(workerid, ktt.score, likelihood_ratio.cautious) %>%
+  merge(d %>% 
+          dplyr::filter(condition == "confident") %>%
+          dplyr::rename(likelihood_ratio.confident = likelihood_ratio) %>%
+          dplyr::select(workerid, likelihood_ratio.confident)) %>%
+  mutate(likelihood_diff = likelihood_ratio.confident - likelihood_ratio.cautious)
+
+d = d %>% 
+  dplyr::mutate(aligned = (condition == most_likely_model)) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(adapter = (sum(aligned) == 2)) %>%
+  dplyr::select(workerid, adapter) %>%
+  merge(d, .)
+
+d.long = d %>% 
+  pivot_longer(tidyselect::ends_with(".score"), 
+               names_to = "measure", 
+               values_to = "score")
+
+d.long %>% 
+  ggplot(aes(x=score, fill=1)) + 
+    geom_density() + 
+    theme(legend.position = "none") + 
+    facet_wrap(~measure, ncol = 4, scales = "free")
+
+d.long %>% 
+  ggplot(aes(x=score, fill=adapter)) + 
+    geom_density(alpha=0.5) + 
+    theme(legend.position = "none") + 
+    facet_wrap(~measure, ncol = 4, scales = "free")
+
+
+
+
+
+d = d %>% dplyr::mutate(condition = factor(condition),
+                 test_order = factor(test_order),
+                 first_speaker_type = factor(first_speaker_type))
+contrasts(d$condition) = contr.sum(2)
+colnames(contrasts(d$condition)) = c("cautious")
+contrasts(d$test_order) = contr.sum(2)
+colnames(contrasts(d$test_order)) = c("parallel")
+contrasts(d$first_speaker_type) = contr.sum(2)
+colnames(contrasts(d$first_speaker_type)) = c("cautious")
+
+model = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               (1| workerid), 
+             data = d)
+
+print(summary(model))
+
+
+
+d$ktt.score = myNorm(myCenter(d$ktt.score))
+
+
+model = lmer(formula= likelihood_ratio ~ condition + 
+               test_order + 
+               first_speaker_type + 
+               prior_likelihood_ratio + 
+               first_speaker_type * condition + 
+               ktt.score * condition +
+               (1| workerid), 
+             data = d)
+
+print(summary(model))
+
+
+
+
+
+
+```
+
+
+
+
+```{r corr_plots, echo=F, fig.width=4, fig.height=4}
+
+d.diff %>%
+ ggplot(aes(x=ktt.score, y=likelihood_diff)) + 
+  geom_smooth(method="lm") + 
+  geom_point() + 
+  geom_point(col = "red", pch=3, 
+             data = d.diff %>% 
+               dplyr::group_by(ktt.score) %>% 
+               dplyr::summarize(likelihood_diff = mean(likelihood_diff))) +
+  ggtitle("KTT")
+
+
+
+
+
+
+```
+
+
+# Backward elimination
+
+```{r backward_elimination, echo=F}
+
+step_res = lmerTest::step(model)
+final = lmerTest::get_model(step_res)
+
+print(summary(final))
+
+
+```
+
+
+
+
