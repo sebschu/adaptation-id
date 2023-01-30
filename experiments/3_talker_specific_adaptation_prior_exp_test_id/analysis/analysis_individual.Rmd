@@ -119,7 +119,8 @@ exclude = catch_trial_perf %>%
 
 
 print(paste("Excluded", length(exclude), "participants based on catch-trial performance."))
-
+print("Excluded participants:")
+print(exclude)
 
 #final data
 d = trials %>% filter(., !(workerid %in% exclude))

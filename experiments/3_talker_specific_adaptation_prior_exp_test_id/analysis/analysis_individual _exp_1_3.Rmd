@@ -262,7 +262,7 @@ plot_conditions = function(d, plot_title) {
       geom_errorbar(aes(ymin=mu-ci_low, ymax=mu+ci_high), width=.1) +
       geom_line() +
       geom_point(size=1) +
-      guides(col=guide_legend(title="Spoeaker type:")) +
+      guides(col=guide_legend(title="Speaker type:")) +
       theme(legend.position="bottom") + 
       facet_wrap(~modal)
 
@@ -656,4 +656,44 @@ write.csv(d.post_test, "../../4_id_tasks/data/5_adaptation_data-merged.csv")
 ```{r reverseadapters_list, echo=F}
    knitr::kable(d.aggregated_stats %>% 
                   filter(aligned_count == 0))
+```
+
+
+### Adaptation plot for paper (only included participants)
+
+```{r paper_plots, echo=FALSE}
+
+included_participants = read.csv("../../4_id_tasks/data/A_included_participants.csv")$x
+
+d.filtered = d %>% 
+  filter (workerid %in% included_participants) %>%
+  filter(speaker_type != "prior") %>%
+  filter(modal != "other")
+
+
+ 
+  d_means = d.filtered %>%
+  group_by(workerid, percentage_blue, modal, speaker_type) %>% 
+  summarise(participant_mean = mean(rating)) %>%
+  group_by(percentage_blue, modal, speaker_type) %>%
+  summarise(mu = mean(participant_mean),
+         ci_high = ci.high(participant_mean), 
+         ci_low = ci.low(participant_mean))
+
+  
+  p1 = ggplot(d_means, aes(x=percentage_blue, y=mu, col=modal, lty=speaker_type)) + 
+  xlab("% blue gumballs") +
+  ylab("mean ratings") +
+  geom_errorbar(aes(ymin=mu-ci_low, ymax=mu+ci_high), width=3, lty=1) +
+  geom_line() +
+  geom_point(size=1) +
+  guides(col=guide_legend(title="Expr."), lty=guide_legend("Speaker")) +
+  scale_color_manual(values=c("#7CB637",  "#4381C1"))  +
+  theme(legend.position="bottom") + 
+  geom_vline(xintercept=60, lty=3, col="gray", size=1)
+
+  plot(p1)
+  
+  ggsave(filename="exp1-adaptation-plot.pdf", width=7, height=5, plot=p1)
+  
 ```

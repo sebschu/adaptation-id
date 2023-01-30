@@ -17,8 +17,13 @@ theme_set(theme_bw())
 
 
 myNorm = function(x) {
-  return(x * 2 / (max(x) - min(x)))
+ xmin = min(x)
+ xmax = max(x) 
+ x_scaled = (x - xmin)/(xmax - xmin) * 2 -1
+ return(x_scaled)
 }
+
+
 
 ```
 
@@ -60,15 +65,44 @@ d.adapter_types = d %>%
 print(paste("Number of participants after ID test exclusions:", length(unique(d$workerid))))
 knitr::kable(d.adapter_types)
 
+write.csv(unique(d$workerid), "../data/A_included_participants.csv")
+
+
 d.diff = d %>% 
   dplyr::filter(condition == "cautious") %>%
   dplyr::rename(likelihood_ratio.cautious = likelihood_ratio) %>%
-  dplyr::select(workerid, ktt.score, likelihood_ratio.cautious) %>%
+  dplyr::rename(most_likely_model.cautious = most_likely_model) %>%
+  dplyr::select(workerid, ktt.score, likelihood_ratio.cautious, most_likely_model.cautious) %>%
   merge(d %>% 
           dplyr::filter(condition == "confident") %>%
           dplyr::rename(likelihood_ratio.confident = likelihood_ratio) %>%
-          dplyr::select(workerid, likelihood_ratio.confident)) %>%
-  mutate(likelihood_diff = likelihood_ratio.confident - likelihood_ratio.cautious)
+          dplyr::rename(most_likely_model.confident = most_likely_model) %>% 
+          dplyr::select(workerid, likelihood_ratio.confident, most_likely_model.confident)) %>%
+  mutate(likelihood_diff = likelihood_ratio.confident - likelihood_ratio.cautious) %>%
+  mutate(most_likely_model.cautious.correct = most_likely_model.cautious == "cautious") %>%
+  mutate(most_likely_model.confident.correct = most_likely_model.confident == "confident") %>%
+  mutate(adapter_type = case_when(
+    most_likely_model.confident.correct & most_likely_model.cautious.correct ~ "adapted to both speakers",
+    most_likely_model.confident.correct & !most_likely_model.cautious.correct ~ "always confident",
+    !most_likely_model.confident.correct & most_likely_model.cautious.correct ~ "always cautious",
+    TRUE ~ "adapted to wrong speakers"
+  ))
+
+
+
+corr_plot = d.diff %>% 
+  mutate(adapter_type = factor(adapter_type, levels=c("adapted to wrong speakers", "always cautious", "always confident", "adapted to both speakers"))) %>%
+  ggplot(aes(x=likelihood_diff, y=ktt.score)) + 
+  geom_point(aes(col=adapter_type, pch=adapter_type), size=3) +
+  geom_smooth(method="lm") +
+  theme(legend.position = "bottom") + 
+  xlab ("Difference in likelihood ratio across two test conditions\n(LLR confident - LLR cautious)") + 
+  ylab("Keep track task score") +
+  guides(pch=guide_legend(title="Adapter type"), col=guide_legend("Adapter type"))
+
+ggsave(filename="exp2-ktt-LLD.pdf", plot=corr_plot, width=8, height=6)
+
+
 
 d = d %>% 
   dplyr::mutate(aligned = (condition == most_likely_model)) %>%
@@ -120,7 +154,7 @@ print(summary(model))
 
 
 
-d$ktt.score = myNorm(myCenter(d$ktt.score))
+d$ktt.score = myCenter(myNorm(d$ktt.score))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 

@@ -16,9 +16,18 @@ library(effectsize)
 theme_set(theme_bw())
 
 
+#myNorm = function(x) {
+#  return(x * 2 / (max(x) - min(x)))
+#}
+
 myNorm = function(x) {
-  return(x * 2 / (max(x) - min(x)))
+ xmin = min(x, na.rm = TRUE)
+ xmax = max(x, na.rm = TRUE) 
+ x_scaled = (x - xmin)/(xmax - xmin) * 2 -1
+ return(x_scaled)
 }
+
+
 
 ```
 
@@ -28,20 +37,24 @@ myNorm = function(x) {
 
 d.adaptation = read.csv("../data/5_adaptation_data-merged.csv")
 d.ktt = read.csv("../data/1_scores_ktt-anon.csv") %>% 
-  dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  #dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  dplyr::mutate(score = case_when(is.na(exclude) | exclude != 1 ~ score)) %>%
   dplyr::select(workerid, score) %>% 
   dplyr::rename (ktt.score = score) 
 d.rmet = read.csv("../data/2_scores_rmet-anon.csv") %>%
-  dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  #dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  dplyr::mutate(score = case_when(is.na(exclude) | exclude != 1 ~ score)) %>%
   dplyr::select("workerid", "score") %>% 
   dplyr::rename (rmet.score = score)
 d.crt = read.csv("../data/3_crt_scores-anon.csv") %>%
-  dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  #dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  dplyr::mutate(crt = case_when(is.na(exclude) | exclude != 1 ~ crt)) %>%
   dplyr::select("workerid", "crt") %>% 
   dplyr::rename(crt.score = crt)
 
 d.art = read.csv("../data/4_art_scores_with_timeouts_false_pos-anon.csv") %>%
-  dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  #dplyr::filter(is.na(exclude) | exclude != 1) %>%
+  dplyr::mutate(art.score = case_when(is.na(exclude) | exclude != 1 ~ art.score)) %>%
   dplyr::select("workerid", "art.score") 
 
 d.ktt.all = read.csv("../data/1_scores_ktt-anon.csv") %>%
@@ -77,6 +90,7 @@ d.adapter_types = d %>%
   dplyr::mutate(freq = count / sum(count))
 
 print(paste("Number of participants after ID test exclusions:", length(unique(d$workerid))))
+write.csv(unique(d$workerid), file="../data/A_included_participants.csv")
 knitr::kable(d.adapter_types)
 
 d.diff = d %>% 
@@ -137,7 +151,7 @@ model = lmer(formula= likelihood_ratio ~ condition +
 
 print(summary(model))
 
-d$art.score = myNorm(myCenter(d$art.score))
+d$art.score = myCenter(myNorm(d$art.score))
 
 model = lmer(formula= likelihood_ratio ~ condition + 
                test_order + 
@@ -146,11 +160,11 @@ model = lmer(formula= likelihood_ratio ~ condition +
                first_speaker_type * condition + 
                art.score * condition +
                (1| workerid), 
-             data = d)
+             data = d, na.action = na.omit)
 
 print(summary(model))
 
-d$ktt.score = myNorm(myCenter(d$ktt.score))
+d$ktt.score = myCenter(myNorm(d$ktt.score))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -164,7 +178,7 @@ model = lmer(formula= likelihood_ratio ~ condition +
 
 print(summary(model))
 
-d$rmet.score = myNorm(myCenter(d$rmet.score))
+d$rmet.score = myCenter(myNorm(d$rmet.score))
 
 model = lmer(formula= likelihood_ratio ~ condition + 
                test_order + 
@@ -177,7 +191,7 @@ model = lmer(formula= likelihood_ratio ~ condition +
 
 print(summary(model))
 
-d$crt.score = myNorm(myCenter(d$crt.score))
+d$crt.score = myCenter(myNorm(d$crt.score))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -201,7 +215,7 @@ model = lmer(formula= likelihood_ratio ~ condition +
                rmet.score * condition +
                crt.score * condition +
                (1| workerid), 
-             data = d)
+             data = na.omit(d))
 
 print(summary(model), correlation=TRUE)
 
@@ -312,8 +326,8 @@ d.diff = d %>%
 
 
 
-d$ktt.score = myNorm(myCenter(d$ktt.score))
-d$likelihood_ratio = myNorm(myCenter(d$likelihood_ratio))
+d$ktt.score = myCenter(myNorm(d$ktt.score))
+#d$likelihood_ratio = myCenter(myNorm(d$likelihood_ratio))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -343,7 +357,7 @@ d.diff %>%
 
 ```
 
-```{r power_analysis echo=F}
+```{r power_analysis, echo=F}
 library(InteractionPoweR)
 
 test_power<-power_interaction_r2(
@@ -398,7 +412,7 @@ d.diff = d %>%
 
 
 
-d$rmet.score = myNorm(myCenter(d$rmet.score))
+d$rmet.score = myCenter(myNorm(d$rmet.score))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -470,8 +484,8 @@ d.diff = d %>%
 
 
 
-d$rmet.score = myNorm(myCenter(d$rmet.score))
-d$ktt.score = myNorm(myCenter(d$ktt.score))
+d$rmet.score = myCenter(myNorm(d$rmet.score))
+d$ktt.score = myCenter(myNorm(d$ktt.score))
 
 
 model = lmer(formula= likelihood_ratio ~ condition + 
@@ -482,7 +496,7 @@ model = lmer(formula= likelihood_ratio ~ condition +
                rmet.score * condition +
                ktt.score * condition +
                (1| workerid), 
-             data = d)
+             data = na.omit(d))
 step_res = lmerTest::step(model)
 final = lmerTest::get_model(step_res)
 
