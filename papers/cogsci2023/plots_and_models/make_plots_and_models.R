@@ -4,6 +4,7 @@ library(lmerTest)
 library(tidyverse)
 library(effectsize)
 library(texreg)
+library(xtable)
 
 theme_set(theme_bw())
 
@@ -198,6 +199,24 @@ d = d.adaptation %>%
 
 print(paste("Number of participants after ID test exclusions:", length(unique(na.omit(d)$workerid))))
 
+
+d.included = na.omit(d)
+
+indiv_measures.exp1 = d.included %>%
+  dplyr::select(workerid, ktt.score, art.score, rmet.score, crt.score) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(ktt.score = first(ktt.score), 
+                   art.score=first(art.score), 
+                   rmet.score=first(rmet.score),
+                   crt.score=first(crt.score)) %>%
+  tidyr::pivot_longer(ends_with(".score"), names_to=c("measure", "xxx"), names_sep="[.]") %>% 
+  group_by(measure) %>%
+  dplyr::summarize(mean = mean(value, na.rm=T), sd=sd(value, na.rm=T), obs_range=paste(min(value, na.rm=T), max(value, na.rm=T), sep="-")) %>%
+  mutate(measure = str_to_upper(measure))
+
+indiv_measures.exp1 = indiv_measures.exp1[match(c("KTT", "ART", "CRT", "RMET"), indiv_measures.exp1$measure),]
+
+    
 d = d %>% dplyr::mutate(condition = factor(condition),
                         test_order = factor(test_order),
                         first_speaker_type = factor(first_speaker_type, levels=c("confident", "cautious")))
@@ -212,6 +231,7 @@ d$art.score = myCenter(myNorm(d$art.score))
 d$ktt.score = myCenter(myNorm(d$ktt.score))
 d$rmet.score = myCenter(myNorm(d$rmet.score))
 d$crt.score = myCenter(myNorm(d$crt.score))
+d$prior_likelihood_ratio = d$prior_likelihood_ratio / (max(d$prior_likelihood_ratio) - min(d$prior_likelihood_ratio)) * 2
 
 model_full = lmer(formula= likelihood_ratio ~ condition + 
                test_order + 
@@ -241,6 +261,9 @@ model = lmer(formula= likelihood_ratio ~ condition +
 step_res = lmerTest::step(model)
 final.exp1 = lmerTest::get_model(step_res)
 print(summary(final.exp1))
+
+
+
 
 ############################################
 # Experiment 2                             #
@@ -294,6 +317,15 @@ corr_plot = d.diff %>%
 
 ggsave(filename="exp2-ktt-LLD.pdf", plot=corr_plot, width=8, height=6)
 
+indiv_measures.exp2 = d %>%
+  dplyr::select(workerid, ktt.score) %>%
+  dplyr::group_by(workerid) %>%
+  dplyr::summarize(ktt.score = first(ktt.score)) %>%
+  tidyr::pivot_longer(ends_with(".score"), names_to=c("measure", "xxx"), names_sep="[.]") %>% 
+  group_by(measure) %>%
+  dplyr::summarize(mean = mean(value, na.rm=T), sd=sd(value, na.rm=T), obs_range=paste(min(value, na.rm=T), max(value, na.rm=T), sep="-"))
+
+
 d = d %>% dplyr::mutate(condition = factor(condition),
                         test_order = factor(test_order),
                         first_speaker_type = factor(first_speaker_type, levels=c("confident", "cautious")))
@@ -306,7 +338,7 @@ colnames(contrasts(d$first_speaker_type)) = c("cautious")
 
 d$ktt.score = myCenter(myNorm(d$ktt.score))
 
-
+d$prior_likelihood_ratio = d$prior_likelihood_ratio / (max(d$prior_likelihood_ratio) - min(d$prior_likelihood_ratio)) * 2
 
 model.exp2 = lmer(formula= likelihood_ratio ~ condition + 
                first_speaker_type + 
@@ -346,6 +378,17 @@ texreg::texreg(c(model_full,final.exp1, model.exp2),
     )
 
 
+# write indiv. differences stats to file:
+
+indiv_measures.exp1$poss_range = c("0-36", "-65-65", "0-1", "0-36")
+
+print(xtable(indiv_measures.exp1), file="indiv-measures-exp1.tex", floating=F, include.colnames=F, only.contents=T, include.rownames=F)
+
+indiv_measures.exp2$poss_range = c("0-36")
+
+print(xtable(indiv_measures.exp2), file="indiv-measures-exp2.tex", floating=F, include.colnames=F, only.contents=T, include.rownames=F)
+
+
 ##########################
 # Additional analyses
 ##########################
@@ -373,6 +416,7 @@ d$ktt.score = myCenter(myNorm(d$ktt.score))
 
 model.exp2a = lmer(formula= likelihood_ratio ~ condition + 
                     first_speaker_type + 
+                    prior_likelihood_ratio +
                     ktt.score * condition +
                     (1| workerid), 
                   data = d)
