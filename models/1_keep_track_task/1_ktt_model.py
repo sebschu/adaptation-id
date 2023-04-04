@@ -4,6 +4,8 @@ import random
 from collections import Counter
 import csv, json
 import sys
+import argparse
+import os
 
 
 class KTTModel(object):
@@ -17,8 +19,10 @@ class KTTModel(object):
         "relatives": ["mother", "father", "brother", "sister", "aunt", "uncle"]
         }
     
-    def __init__(self, data_path):
+    def __init__(self, data_path, out_path, run):
         self.data_path = data_path
+        self.out_path = out_path
+        self.run = run
         self.load_data()
     
     def load_data(self):
@@ -64,23 +68,23 @@ class KTTModel(object):
         return weights
 
     def init_trace(self):
-        
+        #decay_rate = 0.95
         decay_rate = random.uniform(0.8, 1.0)
-        #N = random.normalvariate(150.0, 25.0)
-        N = 150
+        N = random.normalvariate(150.0, 25.0)
+        #N = 150
         attention_weight = random.uniform(0.5, 1)
         
         return (N, attention_weight, decay_rate)
 
     def prior_N(self, old_val):
-        return 150
-        #width = 0.001
-        #old_val = np.log(old_val)
-        #return np.exp(norm(old_val, width).rvs())
+        #return 150
+        width = 0.001
+        old_val = np.log(old_val)
+        return np.exp(norm(old_val, width).rvs())
         
 
     def prior_attention_weight(self, old_val):
-        width = 0.001
+        width = 0.1
         a = max(.5, old_val - width)
         b = min(1, old_val + width)
         b = max(0, b - a)
@@ -88,6 +92,7 @@ class KTTModel(object):
 
     
     def prior_decay_rate(self, old_val):
+        #return 0.95
         width = 0.001
         a = max(.5, old_val - width)
         b = min(1, old_val + width)
@@ -139,7 +144,7 @@ class KTTModel(object):
                 v = v.lower()
                 r = r.lower().strip()
                 #gold_probs.append(d["item_probs_" + cat][v])
-                likelihood += np.log(d["item_probs_" + cat][r]) if r in d["item_probs_" + cat] else -3
+                likelihood += np.log(d["item_probs_" + cat][r]) if r in d["item_probs_" + cat] else 0
                 counts += 1
                 #if v == r:
                 #    correct_gold_probs.append(d["item_probs_" + cat][v])
@@ -156,21 +161,30 @@ class KTTModel(object):
     def compute_trans_probs(self, src_N, src_attention_weight, src_decay_rate, 
                           tgt_N, tgt_attention_weight, tgt_decay_rate):
       log_prob = 0
-      #N_width = 0.001
-      #other_width = 0.01
-      #src = np.log(src_N)
-      #tgt = np.log(tgt_N)
-      #log_prob += norm(src, N_width).logpdf(tgt)
+      N_width = 0.001
+      other_width = 0.01
+      src = np.log(src_N)
+      tgt = np.log(tgt_N)
+      log_prob += norm(src, N_width).logpdf(tgt)
       
       return log_prob
   
  
 def run_mcmc():
-    data_path = "/Users/sebschu/Dropbox/Uni/RA/adaptation/individual-differences/experiments/5_talker_specific_adaptation_prior_exp_test_ktt/data/ktt_raw_HID.csv"
-    model = KTTModel(data_path)
     
-    burn_in = 0
     
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=str, help="Path to data")
+    parser.add_argument("--out_path", type=str, help="Path to write the samples")
+    parser.add_argument("--run", type=str, help="Name of the run")
+
+    args = parser.parse_args()
+    
+    data_path = args.data
+    model = KTTModel(data_path, args.out_path, args.run)
+    
+    burn_in = 10000
+ 
     acceptance = 0
     samples = []
 
@@ -180,42 +194,51 @@ def run_mcmc():
     sample = model.make_sample(old_N, old_attention_weight, old_decay_rate)
 
     samples.append(sample)
-    
-    log_file = sys.stderr
-    
-    for it in range(10000):
-        if it > 0 and it % 100 == 0:
-          print("Iteration: {} ".format(it), file=log_file)
-          print("Acceptance rate: {}".format(acceptance * 1.0 / it), file=log_file)
-          print("Log likelihood: {}".format(old_likelihood), file=log_file)
-          
-        N = model.prior_N(old_N)
-        decay_rate = model.prior_decay_rate(old_decay_rate)
-        attention_weight = model.prior_attention_weight(old_attention_weight)
 
-        new_likelihood = model.compute_likelihood(N, attention_weight, decay_rate)
-        accept = new_likelihood > old_likelihood
-        if not accept:
-          fwd_prob = model.compute_trans_probs(old_N, old_attention_weight, old_decay_rate, N, attention_weight, decay_rate)
-          bwd_prob = model.compute_trans_probs(N, attention_weight, decay_rate, old_N, old_attention_weight, old_decay_rate)
-          likelihood_ratio = new_likelihood - old_likelihood - fwd_prob + bwd_prob
-          u = np.log(uniform(0,1).rvs())
-          #print(likelihood_ratio, u)
-          if u < likelihood_ratio:
-            accept = True
-        
-        if accept:
-          old_likelihood = new_likelihood
-          sample = model.make_sample(N, attention_weight, decay_rate)
-          acceptance += 1
-        
-        if it > burn_in and it % 10 == 0:
-          samples.append(sample)
-          if len(samples) % 10 == 0:
-            json.dump(samples, open("samples.json", "w"))
-  
+    log_file_path = os.path.join(model.out_path, f"run{model.run}.log")
+    samples_file_path = os.path.join(model.out_path, f"samples_run{model.run}.json")
 
-    json.dump(samples, open("samples_final.json", "w"))
+    
+    with open(log_file_path, "w", encoding="UTF-8") as log_file:
+    
+        for it in range(1000000):
+            if it > 0 and it % 100 == 0:
+                print("Iteration: {} ".format(it), file=log_file)
+                print("Acceptance rate: {}".format(acceptance * 1.0 / it), file=log_file)
+                print("Log likelihood: {}".format(old_likelihood), file=log_file)
+                
+            N = model.prior_N(old_N)
+            decay_rate = model.prior_decay_rate(old_decay_rate)
+            attention_weight = model.prior_attention_weight(old_attention_weight)
+
+            new_likelihood = model.compute_likelihood(N, attention_weight, decay_rate)
+            accept = new_likelihood > old_likelihood
+            if not accept:
+                fwd_prob = model.compute_trans_probs(old_N, old_attention_weight, old_decay_rate, N, attention_weight, decay_rate)
+                bwd_prob = model.compute_trans_probs(N, attention_weight, decay_rate, old_N, old_attention_weight, old_decay_rate)
+                likelihood_ratio = new_likelihood - old_likelihood - fwd_prob + bwd_prob
+                u = np.log(uniform(0,1).rvs())
+                #print(likelihood_ratio, u)
+                if u < likelihood_ratio:
+                    accept = True
+                
+            if accept:
+                old_likelihood = new_likelihood
+                sample = model.make_sample(N, attention_weight, decay_rate)
+                acceptance += 1
+                old_N = N
+                old_attention_weight = attention_weight
+                old_decay_rate = decay_rate
+                
+            
+            if it > burn_in and it % 10 == 0:
+                samples.append(sample)
+                if len(samples) % 1000 == 0:
+                    with open(samples_file_path, "w", encoding="UTF-8") as out_f:
+                        json.dump(samples, out_f)
+    
+    with open(samples_file_path, "w", encoding="UTF-8") as out_f:
+        json.dump(samples, out_f)
 
 
 
