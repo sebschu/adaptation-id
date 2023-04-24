@@ -19,11 +19,17 @@ class KTTModel(object):
         "relatives": ["mother", "father", "brother", "sister", "aunt", "uncle"]
         }
     
-    def __init__(self, data_path, out_path, run):
-        self.data_path = data_path
+    def __init__(self, out_path, run, config_path):
         self.out_path = out_path
         self.run = run
+        self.load_config(config_path)
+        self.data_path = self.config["data_path"]
+
         self.load_data()
+    
+    def load_config(self, config_path):
+        with open(config_path, "r", encoding="UTF-8") as f:
+            self.config = json.load(f)
     
     def load_data(self):
         self.data = []
@@ -68,23 +74,27 @@ class KTTModel(object):
         return weights
 
     def init_trace(self):
-        #decay_rate = 0.95
-        decay_rate = random.uniform(0.8, 1.0)
-        N = random.normalvariate(150.0, 25.0)
-        #N = 150
-        attention_weight = random.uniform(0.5, 1)
+        decay_rate = self.config["parameters"]["decay_rate"]["init"]
+        N = self.config["parameters"]["N"]["init"]
+        attention_weight = self.config["parameters"]["attention_weight"]["init"]
         
         return (N, attention_weight, decay_rate)
 
     def prior_N(self, old_val):
-        #return 150
-        width = 0.001
+        if not self.config["parameters"]["N"]["update"]:
+            return old_val
+
+        width = self.config["parameters"]["N"]["proposal_width"]
         old_val = np.log(old_val)
         return np.exp(norm(old_val, width).rvs())
         
 
     def prior_attention_weight(self, old_val):
-        width = 0.1
+        
+        if not self.config["parameters"]["attention_weight"]["update"]:
+            return old_val
+        
+        width = self.config["parameters"]["attention_weight"]["proposal_width"]
         a = max(.5, old_val - width)
         b = min(1, old_val + width)
         b = max(0, b - a)
@@ -92,8 +102,12 @@ class KTTModel(object):
 
     
     def prior_decay_rate(self, old_val):
-        #return 0.95
-        width = 0.001
+        
+        
+        if not self.config["parameters"]["decay_rate"]["update"]:
+            return old_val
+        
+        width = self.config["parameters"]["decay_rate"]["proposal_width"]
         a = max(.5, old_val - width)
         b = min(1, old_val + width)
         b = max(0, b - a)
@@ -113,43 +127,22 @@ class KTTModel(object):
             xs = (alphas - 1) / (A - len(alphas))
             return dict(zip(labels, xs))
 
-                
-                
-
-        #chosen_probs = []
-        #gold_probs = []
-
-        #correct_gold_probs = []
-        #incorrect_gold_probs = []
 
         likelihood = 0
-        counts = 0
 
         for d in self.data:
             final_weights = self.run_experiment(d, N, attention_weight, decay_rate)
             for cat in self.CATEGORIES:
                 d["item_probs_" + cat] = compute_mode(final_weights, cat)
-            
-            #for cat, v in d["userResponse"].items():
-            #    cat = cat.lower()
-            #    v = v.lower()
-                #if v in d["item_probs_" + cat]:
-                #    chosen_probs.append(d["item_probs_" + cat][v])
-                #else:
-                #    chosen_probs.append(0)
+          
                 
             for cat, v in d["answers"].items():
                 r = d["userResponse"][cat]
                 cat = cat.lower()
                 v = v.lower()
                 r = r.lower().strip()
-                #gold_probs.append(d["item_probs_" + cat][v])
                 likelihood += np.log(d["item_probs_" + cat][r]) if r in d["item_probs_" + cat] else 0
-                counts += 1
-                #if v == r:
-                #    correct_gold_probs.append(d["item_probs_" + cat][v])
-                #else:
-                #    incorrect_gold_probs.append(d["item_probs_" + cat][v])
+               
 
 
         return likelihood
@@ -161,11 +154,12 @@ class KTTModel(object):
     def compute_trans_probs(self, src_N, src_attention_weight, src_decay_rate, 
                           tgt_N, tgt_attention_weight, tgt_decay_rate):
       log_prob = 0
-      N_width = 0.001
-      other_width = 0.01
-      src = np.log(src_N)
-      tgt = np.log(tgt_N)
-      log_prob += norm(src, N_width).logpdf(tgt)
+      
+      if self.config["parameters"]["N"]["update"]:
+        N_width = self.config["parameters"]["N"]["proposal_width"]
+        src = np.log(src_N)
+        tgt = np.log(tgt_N)
+        log_prob += norm(src, N_width).logpdf(tgt)
       
       return log_prob
   
@@ -174,16 +168,15 @@ def run_mcmc():
     
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=str, help="Path to data")
+    parser.add_argument("--config", type=str, help="Path to config file")
     parser.add_argument("--out_path", type=str, help="Path to write the samples")
     parser.add_argument("--run", type=str, help="Name of the run")
 
     args = parser.parse_args()
     
-    data_path = args.data
-    model = KTTModel(data_path, args.out_path, args.run)
+    config_path = args.config
+    model = KTTModel(args.out_path, args.run, config_path)
     
-    burn_in = 10000
  
     acceptance = 0
     samples = []
@@ -201,7 +194,7 @@ def run_mcmc():
     
     with open(log_file_path, "w", encoding="UTF-8") as log_file:
     
-        for it in range(1000000):
+        for it in range(model.config["iterations"]):
             if it > 0 and it % 100 == 0:
                 print("Iteration: {} ".format(it), file=log_file)
                 print("Acceptance rate: {}".format(acceptance * 1.0 / it), file=log_file)
@@ -231,7 +224,7 @@ def run_mcmc():
                 old_decay_rate = decay_rate
                 
             
-            if it > burn_in and it % 10 == 0:
+            if it > model.config["burn_in"] and it % 10 == 0:
                 samples.append(sample)
                 if len(samples) % 1000 == 0:
                     with open(samples_file_path, "w", encoding="UTF-8") as out_f:
@@ -240,14 +233,6 @@ def run_mcmc():
     with open(samples_file_path, "w", encoding="UTF-8") as out_f:
         json.dump(samples, out_f)
 
-
-
-
-    
-    
-    
-
- 
     
 if __name__ == "__main__":
     run_mcmc()

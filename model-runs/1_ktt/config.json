@@ -1,0 +1,27 @@
+{
+ 
+  "parameters": {
+    "N": {
+      "init": 1000,
+      "update": false,
+      "proposal_width": 0.005
+    },
+    "attention_weight": {
+      "init": 0.9,
+      "proposal_width": 0.1,
+      "update": true
+    },
+    "decay_rate": {
+      "init": 0.7,
+      "proposal_width": 0.01,
+      "update": true
+    }
+  },
+  
+  "data_path": "./experiments/5_talker_specific_adaptation_prior_exp_test_ktt/data/ktt_raw_HID.csv",
+  "iterations": 1000000,
+  "burn_in": 10000,
+  "hdi_estimation_samples": 1000
+}
+
+
