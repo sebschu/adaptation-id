@@ -4,17 +4,23 @@
     "N": {
       "init": 1000,
       "update": false,
-      "proposal_width": 0.005
+      "proposal_width": 0.005,
+      "prior_mu": 1000,
+      "prior_sd": 250
     },
     "attention_weight": {
-      "init": 0.9,
-      "proposal_width": 0.2,
-      "update": true
+      "init": 0.77,
+      "proposal_width": 0.1,
+      "update": true,
+      "prior_mu": 0.77,
+      "prior_sd": 0.14
     },
     "decay_rate": {
       "init": 0.7,
       "proposal_width": 0.05,
-      "update": true
+      "update": true,
+      "prior_mu": 0.71,
+      "prior_sd": 0.1
     }
   },
   
