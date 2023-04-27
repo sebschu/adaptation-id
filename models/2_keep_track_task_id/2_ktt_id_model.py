@@ -141,7 +141,7 @@ class KTTIDModel(object):
 
     def prior(self, N, attention_weights, decay_rate, workerid=None):
         log_prior = 0
-        
+         
         # prior over N
         if self.config["parameters"]["N"]["update"]:
             N_mu = self.config["parameters"]["N"]["prior_mu"] 
@@ -268,19 +268,33 @@ def run_mcmc():
             if cycle == 0:
                 N = model.proposal_N(old_N)
                 decay_rate = model.proposal_decay_rate(old_decay_rate)
+                #print(attention_weights)
+                #print(old_attention_weights)
             else:
                 workerid = model.workerids[cycle - 1]
                 attention_weights[workerid] = model.proposal_attention_weight(old_attention_weights[workerid])
 
             if workerid is not None:
-                likelihood_diff = model.compute_likelihood(N, attention_weights, decay_rate, workerid=workerid) - model.compute_likelihood(old_N, old_attention_weights, old_decay_rate, workerid=workerid)
+                likelihood_diff = model.compute_likelihood(old_N, attention_weights, old_decay_rate, workerid=workerid) - model.compute_likelihood(old_N, old_attention_weights, old_decay_rate, workerid=workerid)
+#                print(f"DIFF: {likelihood_diff}" )
                 new_likelihood = old_likelihood + likelihood_diff
-                prior_diff = model.prior(N, attention_weights, decay_rate, workerid=workerid) -  model.prior(old_N, old_attention_weights, old_decay_rate, workerid=workerid)
+                prior_diff = model.prior(old_N, attention_weights, old_decay_rate, workerid=workerid) -  model.prior(old_N, old_attention_weights, old_decay_rate, workerid=workerid)
                 new_prior = old_prior + prior_diff
+                #print(f"old_prior: {old_prior}")
+ #               print(f"DIFF: {prior_diff}" )
+
             else:
-                new_likelihood =  model.compute_likelihood(N, attention_weights, decay_rate)
-                new_prior = model.prior(N, attention_weights, decay_rate)
-            accept = new_likelihood + new_prior > old_likelihood + old_prior
+                #print(f"old_likelihood: {old_likelihood}")
+                #print(model.compute_likelihood(old_N, old_attention_weights, old_decay_rate))
+                #print(f"old_prior: {old_prior}")
+                new_likelihood =  model.compute_likelihood(N, old_attention_weights, decay_rate)
+                new_prior = model.prior(N, old_attention_weights, decay_rate)
+                #print(f"new_likelihood: {new_likelihood}")
+                #print(f"new_prior: {new_prior}")
+
+ #
+ 
+            accept = (new_likelihood + new_prior) > (old_likelihood + old_prior)
             if not accept:
                 fwd_prob = model.compute_trans_probs(old_N, old_attention_weights, old_decay_rate, N, attention_weights, decay_rate)
                 bwd_prob = model.compute_trans_probs(N, attention_weights, decay_rate, old_N, old_attention_weights, old_decay_rate)
@@ -293,14 +307,18 @@ def run_mcmc():
                 old_likelihood = new_likelihood
                 old_prior = new_prior
                 acceptance += 1
-                old_N = N
                 if workerid is not None:
                     old_attention_weights[workerid] = attention_weights[workerid]
-                old_decay_rate = decay_rate
-                
+                    #print("updating AW")
+
+                else:
+                    #print("updating decay rate")
+                    old_decay_rate = decay_rate
+                    old_N = N
+
             
             if it > model.config["burn_in"] and it % (10 * it_cycle_len) == 0:
-                sample = model.make_sample(N, attention_weights, decay_rate)
+                sample = model.make_sample(old_N, old_attention_weights, old_decay_rate)
                 samples.append(sample)
                 if len(samples) % 1000 == 0:
                     with open(samples_file_path, "w", encoding="UTF-8") as out_f:
