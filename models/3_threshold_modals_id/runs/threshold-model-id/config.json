@@ -1,0 +1,109 @@
+{
+  "utterances": [
+    {
+      "form": "bare",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 1.27407286,
+      "beta_init": 0.290193599,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    },
+    {
+      "form": "might",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 0.928346836,
+      "beta_init": 3.085951846,
+      "cost_init": 3.032517645
+    },
+    {
+      "form": "looks_like",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 1.392202548,
+      "beta_init": 0.607398941,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    },
+    {
+      "form": "probably",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 2.551699929,
+      "beta_init": 1.771064246,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    },
+    {
+      "form": "think",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 1.654929927,
+      "beta_init": 1.027969659,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    },
+    {
+      "form": "could",
+      "has_theta": true,
+      "has_cost": true,
+      "alpha_init": 0.799314857,
+      "beta_init": 1.354290469,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    },
+    {
+      "form": "bare_not",
+      "has_theta": true,
+      "has_cost": true,
+      "is_neg": true,
+      "alpha_init": 0.406928031,
+      "beta_init": 1.21875096,
+      "cost_init": 3.032517645,
+      "copy_cost": "might"
+    }
+  ],
+  "noise_strength_init": 0.0743314355312707,
+  "theta_marginalization": "speaker",
+  "condition_encoding": "cost",
+  "rat_alpha_init": 2.21121061177388,
+  "utt_other_prob_init": 3.64068778169297e-05,
+  "proposal_widths": {
+    "theta": 0.005,
+    "cost": 0.005,
+    "rat_alpha": 0,
+    "utt_other_prob": 0,
+    "noise_strength": 0
+  },
+  "conditions": [
+    "bare-might",
+    "bare-probably",
+    "bare-could",
+    "bare-looks_like",
+    "bare-think",
+    "might-probably",
+    "might-could",
+    "might-looks_like",
+    "might-think",
+    "probably-could",
+    "probably-looks_like",
+    "probably-think",
+    "could-looks_like",
+    "could-think",
+    "looks_like-think",
+    "bare_not-bare",
+    "bare_not-might",
+    "bare_not-probably",
+    "bare_not-could",
+    "bare_not-looks_like",
+    "bare_not-think"
+  ],
+  "subject_estimate_condition": "might-probably",
+  "data_path": "./data/data_workerids_cond0-20.json",
+  "iterations": 30001,
+  "burn_in": 5000,
+  "hdi_estimation_samples": 1000
+}
+
+
