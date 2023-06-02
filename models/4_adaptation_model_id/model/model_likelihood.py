@@ -40,7 +40,7 @@ class ModelLikelihood(ThresholdModel):
         costs.append(sample["cost_" + utt["form"]])
       return (theta_alphas, theta_betas, costs, rat_alpha, utt_other_prob, noise_strength)
   
-  def generate_hdi_samples(self):
+  def compute_likelihood_for_samples(self, workerid, condition, out_filename):
     
     likelihood = 0
     theta_alphas, theta_betas, costs, rat_alpha, utt_other_prob, noise_strength = self.get_params(self.mcmc_samples[0])
@@ -62,21 +62,42 @@ class ModelLikelihood(ThresholdModel):
         self.speaker_matrix_cache.clear()
         self.theta_prior_cache.clear()
     likelihood += first_likelihood - np.log(len(self.mcmc_samples))
-    with open(os.path.join(self.output_path, "likelihood"), "w") as out_f:
-      print(likelihood, file=out_f)
+    with open(out_filename, "a") as out_f:
+      print(f"{workerid},{condition},{likelihood}", file=out_f)
     
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--out_dir", required=True)
+  parser.add_argument("--data_dir", required=True)
   parser.add_argument("--filenames", required=False)
+  parser.add_argument("--out_filename", required=False)
   args = parser.parse_args()
   
   out_dir = args.out_dir
   config_file_path = os.path.join(out_dir, "config.json")
   config = json.load(open(config_file_path, "r"))
   
-  model = ModelLikelihood(config, out_dir, "", filenames=args.filenames)
-  model.generate_hdi_samples()
+  model = None
+
+  out_filename = args.out_filename if args.out_filename is not None else os.path.join(args.out_dir, "likelihood")
+  with open(out_filename, "w") as out_f:
+    print("workerid,condition,likelihood", file=out_f)
+  
+  
+  data_path = os.path.join(args.data_dir, "") + "indiv_differences_adaptation_*-worker-*.json"
+  for f in glob.glob(data_path):
+    print(f"Processing {f}...")
+    config["data_path"] = f
+    parts = f.split("-worker-")
+    workerid = parts[1].replace(".json", "")
+    condition = parts[0].replace(os.path.join(args.data_dir, "") + "indiv_differences_adaptation_", "")
+    
+    if model is None:
+      model = ModelLikelihood(config, out_dir, "", filenames=args.filenames)
+    
+    model.config = config
+    model.data = model.load_data()
+    model.compute_likelihood_for_samples(workerid, condition, out_filename)  
 
         
 if __name__ == '__main__':
