@@ -60,6 +60,51 @@
     }, 
     {
       "has_cost": true, 
+      "form": "think", 
+      "mu_init": 0.61684055, 
+      "has_theta": true, 
+      "prior": {
+        "mu_sd": 0.175, 
+        "mu_mu": 0.61684055, 
+        "cost_mu": 3.03251764, 
+        "cost_sd": 0.7
+      }, 
+      "nu_init": 2.68289959, 
+      "cost_init": 3.03251764
+    }, 
+    {
+      "has_cost": true, 
+      "copy_cost": "think", 
+      "form": "could", 
+      "mu_init": 0.37119028, 
+      "has_theta": true, 
+      "prior": {
+        "mu_sd": 0.175, 
+        "mu_mu": 0.37119028, 
+        "cost_mu": 3.03251764, 
+        "cost_sd": 0.7
+      }, 
+      "nu_init": 2.15360533, 
+      "cost_init": 3.03251764
+    }, 
+    {
+      "has_cost": true, 
+      "copy_cost": "think", 
+      "form": "looks_like", 
+      "mu_init": 0.69623235, 
+      "has_theta": true, 
+      "prior": {
+        "mu_sd": 0.175, 
+        "mu_mu": 0.69623235, 
+        "cost_mu": 3.03251764, 
+        "cost_sd": 0.7
+      }, 
+      "nu_init": 1.99960149, 
+      "cost_init": 3.03251764
+    }, 
+    {
+      "has_cost": true, 
+      "copy_cost": "think", 
       "form": "bare_not", 
       "mu_init": 0.25027258, 
       "has_theta": true, 
