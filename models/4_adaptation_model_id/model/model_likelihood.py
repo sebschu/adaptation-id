@@ -7,6 +7,7 @@ import argparse
 import copy
 import csv
 import glob
+import re
 
 from threshold_model import ThresholdModel
 
@@ -67,38 +68,38 @@ class ModelLikelihood(ThresholdModel):
     
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument("--out_dir", required=True)
+  parser.add_argument("--out_dir_root", required=True)
   parser.add_argument("--data_dir", required=True)
-  parser.add_argument("--filenames", required=False)
   parser.add_argument("--out_filename", required=False)
   args = parser.parse_args()
   
-  out_dir = args.out_dir
-  config_file_path = os.path.join(out_dir, "config.json")
-  config = json.load(open(config_file_path, "r"))
   
   model = None
 
-  out_filename = args.out_filename if args.out_filename is not None else os.path.join(args.out_dir, "likelihood")
-  with open(out_filename, "w") as out_f:
-    print("workerid,condition,likelihood", file=out_f)
+  #out_filename = args.out_filename if args.out_filename is not None else os.path.join(args.out_dir, "likelihood")
+  #with open(out_filename, "w") as out_f:
+  #  print("workerid,condition,likelihood", file=out_f)
   
   
-  data_path = os.path.join(args.data_dir, "") + "indiv_differences_adaptation_*-worker-*.json"
-  for f in glob.glob(data_path):
+  model_path = os.path.join(args.out_dir_root, "") + "subject*/*/*output.json"
+  for f in glob.glob(model_path):
     print(f"Processing {f}...")
-    config["data_path"] = f
-    parts = f.split("-worker-")
-    workerid = parts[1].replace(".json", "")
-    condition = parts[0].replace(os.path.join(args.data_dir, "") + "indiv_differences_adaptation_", "")
+    workerid = re.findall("[1-9][0-9][0-9][0-9]", f)[0]
+    condition = re.findall("(cautious|confident)", f)[0] 
+    out_dir = os.path.dirname(f)
+    config_file_path = os.path.join(os.path.dirname(f), "config.json")
+    config = json.load(open(config_file_path, "r"))
+    data_path = os.path.join(args.data_dir, f"indiv_differences_adaptation_{condition}-worker-{workerid}.json")
+    config["data_path"] = data_path
     
-    if model is None:
-      model = ModelLikelihood(config, out_dir, "", filenames=args.filenames)
+    model = ModelLikelihood(config, out_dir, "", filenames="*output.json")
     
+    out_filename = os.path.join(out_dir, "likelihood")
     model.config = config
     model.data = model.load_data()
     model.compute_likelihood_for_samples(workerid, condition, out_filename)  
 
+    
         
 if __name__ == '__main__':
   main()
