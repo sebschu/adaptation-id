@@ -9,6 +9,8 @@ def main():
     
     args = parser.parse_args()
     
+    print("workerid,condition,likelihood")
+    
     model_paths = os.path.join(args.out_dir_root, "") + "subject*/*/likelihood"
     for p in glob.glob(model_paths):
         with open(p, "r") as l_f:
