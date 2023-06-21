@@ -101,7 +101,7 @@ def main():
                 
         
         cautious_dir = os.path.join(args.out_dir, "cautious")
-        confident_dir = os.path.join(args.out_dir, "cautious")
+        confident_dir = os.path.join(args.out_dir, "confident")
 
         os.makedirs(cautious_dir, exist_ok=True)
         os.makedirs(confident_dir, exist_ok=True)
