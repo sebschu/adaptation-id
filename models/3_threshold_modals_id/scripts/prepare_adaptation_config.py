@@ -1,6 +1,7 @@
 import json
 import argparse
 import os
+import csv
 
 
 def beta_mu(a, b):
@@ -16,6 +17,8 @@ def main():
     parser.add_argument("--input", type=str)
     parser.add_argument("--cautious_template", type=str, default="scripts/cautious_template.json")
     parser.add_argument("--confident_template", type=str, default="scripts/confident_template.json")
+    parser.add_argument("--attention_weight_file", type=str, required=False)
+    parser.add_argument("--subject", type=str, required=False)
     parser.add_argument("--out_dir", type=str)
     
     
@@ -35,6 +38,18 @@ def main():
         n_samples = len(samples) * 1.0
         for k,v in param_sums.items():
             mle_params[k] = v / n_samples
+    
+    attention_weight = None
+    
+    if args.attention_weight_file is not None:
+        with open(args.attention_weight_file, "r") as awf:
+            reader = csv.DictReader(awf)
+            for line in reader:
+                if str(line["workerid"]) == args.subject:
+                    attention_weight = float(line["attention_weight"])
+                    break
+            if attention_weight is None:
+                raise ValueError(f"Participant {args.subject} was not found in file containing attention_weights")
 
     with open(args.cautious_template) as cau_t, open(args.confident_template) as con_t:
         cautious_config = json.load(cau_t)
@@ -77,7 +92,14 @@ def main():
         for utt in confident_config["utterances"]:
             update_utt(utt, mle_params)
         
+
+        if attention_weight is not None:
+            for t in cautious_config["exposure_trials"]:
+                t[2] = t[2] * attention_weight
+            for t in confident_config["exposure_trials"]:
+                t[2] = t[2] * attention_weight
                 
+        
         cautious_dir = os.path.join(args.out_dir, "cautious")
         confident_dir = os.path.join(args.out_dir, "cautious")
 
