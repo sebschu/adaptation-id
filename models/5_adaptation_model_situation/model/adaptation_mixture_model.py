@@ -17,14 +17,16 @@ class AdaptationModel(ThresholdModel):
     def __init__(self, config, output_path, run):
         super().__init__(config, output_path, run)
 
-    def compute_likelihood(self, params):
+    def compute_likelihood(self, params, speaker=None):
         log_lkhood = 0
+        
+        n_utt = 3 if "expr_idx1" in params["situation"] else len(self.expressions) + 1
         speaker_probs = np.zeros(
-            (2, len(self.expressions) + 1, self.probabilities_len), dtype=np.float64)
+            (2, n_utt, self.probabilities_len), dtype=np.float64)
         for key in params:
             partial_speaker_probs = np.exp(
                 self.log_speaker_dist(**params[key]))
-            if key in SPEAKERS:
+            if key in SPEAKERS and speaker in (None, key):
                 speaker_probs[SPEAKERS.index(
                     key)] += partial_speaker_probs * self.config["attention_weight"]
             elif key == "situation":
@@ -32,10 +34,13 @@ class AdaptationModel(ThresholdModel):
                     (1 - self.config["attention_weight"])
         speaker_probs = np.log(speaker_probs)
 
-        for speaker, data in self.data.items():
-            speaker_idx = SPEAKERS.index(speaker)
+
+        n_utt = min(n_utt, len(self.expressions))
+
+        for s, data in self.data.items():
+            speaker_idx = SPEAKERS.index(s)
             log_lkhood += np.sum(np.multiply(data,
-                                 speaker_probs[speaker_idx, :-1, :]))
+                                 speaker_probs[speaker_idx, 0:n_utt, :]))
 
         return log_lkhood
 
@@ -303,7 +308,7 @@ class AdaptationModel(ThresholdModel):
                 old_params[param_key] = copy.copy(new_params[param_key])
 
 
-            if it > 0 and it % 10 == 0:
+            if it > burn_in and it % 10 == 0:
                 samples.append(sample)
                 if len(samples) % 1000 == 0:
                     json.dump(samples, open(output_file_name, "w"))
